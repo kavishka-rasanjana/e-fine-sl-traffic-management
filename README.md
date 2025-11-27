@@ -1,4 +1,4 @@
-![e-Fine SL Logo](mobile_app/web/icons/icon-512.png)
+![e-Fine SL Logo](mobile_app/assets/icons/app_icon/app_logo.png)
 
 # e-Fine SL Traffic Management System
 
