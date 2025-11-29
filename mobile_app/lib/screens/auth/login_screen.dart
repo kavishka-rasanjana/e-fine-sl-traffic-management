@@ -3,7 +3,7 @@ import 'package:mobile_app/screens/auth/user_selection_screen.dart';
 import '../../services/auth_service.dart';
 import '../driver/driver_home_screen.dart';
 import '../police/police_home_screen.dart';
-import 'police_signup_screen.dart'; // Import for navigation
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
