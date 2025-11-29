@@ -133,7 +133,17 @@ mobile_app/
    flutter run
    ```
 
-## Next Steps
-- Continue UI/UX improvements.
-- Add more features and screens.
-- Expand integration with backend API.
+
+## Recent Changes & Next Steps
+
+### Recent Changes
+- Improved PoliceSignupScreen with stepper, OTP, and validation.
+- LoginScreen now supports backend authentication.
+- Added searchable dropdown for station selection.
+- Token management with flutter_secure_storage.
+
+### Next Steps
+- Add 'Forgot Password' option for police login.
+- Implement Police Home Page with dashboard and actions.
+- Develop Driver Home Page for driver-specific features.
+- Expand authentication and user management features.

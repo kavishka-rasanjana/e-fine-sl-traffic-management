@@ -115,4 +115,27 @@ class AuthService {
     }
   }
 
+
+  // (Register Driver)
+  Future<void> registerDriver(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/register-driver'), 
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+
+    if (response.statusCode == 201) {
+   
+      final responseData = jsonDecode(response.body);
+      
+     
+      await _storage.write(key: 'token', value: responseData['token']);
+      await _storage.write(key: 'role', value: 'driver'); 
+      await _storage.write(key: 'name', value: responseData['name']);
+    } else {
+     
+      throw Exception(jsonDecode(response.body)['message']);
+    }
+  }
+
 }
