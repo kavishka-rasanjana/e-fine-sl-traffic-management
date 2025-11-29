@@ -83,6 +83,21 @@ Content-Type: application/json
 	 node server.js
 	 ```
 
+
+## Recent Changes & Next Steps
+
+### Recent Changes
+- Improved police registration flow and OTP verification.
+- Enhanced email template for OIC notifications.
+- Added police station master data seeding.
+- JWT-based login for police officers.
+
+### Next Steps
+- Add 'Forgot Password' functionality for police login.
+- Implement Police Home Page with dashboard and actions.
+- Develop Driver Home Page for driver-specific features.
+- Expand API endpoints for password reset and user management.
+
 ## Notes
 
 - Ensure Gmail account allows app password for nodemailer.

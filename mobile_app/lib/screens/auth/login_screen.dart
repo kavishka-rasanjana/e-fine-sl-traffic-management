@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/screens/auth/user_selection_screen.dart';
 import '../../services/auth_service.dart';
 import '../driver/driver_home_screen.dart';
 import '../police/police_home_screen.dart';
@@ -183,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   GestureDetector(
                     onTap: () {
                        // Navigate to Police Registration
-                       Navigator.push(context, MaterialPageRoute(builder: (context) => const PoliceSignupScreen()));
+                       Navigator.push(context, MaterialPageRoute(builder: (context) => const UserSelectionScreen()));
                     },
                     child: const Text(
                       "Register Here",

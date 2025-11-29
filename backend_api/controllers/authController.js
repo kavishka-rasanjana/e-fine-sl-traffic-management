@@ -4,6 +4,7 @@ const sendEmail = require('../utils/sendEmail');
 const bcrypt = require('bcryptjs');
 const Police = require('../models/policeModel'); // Police Model 
 const generateToken = require('../utils/generateToken');
+const Driver = require('../models/driverModel');
 
 // @desc    Request OTP for Police Registration
 // @route   POST /api/auth/request-verification
@@ -160,32 +161,90 @@ const registerPolice = async (req, res) => {
   }
 };
 
-// @desc    Login User (Police)
+// @desc    Register New Driver
+// @route   POST /api/auth/register-driver
+const registerDriver = async (req, res) => {
+  const { name, nic, licenseNumber, email, phone, password } = req.body;
+
+  try {
+    // Check if driver exists
+    const driverExists = await Driver.findOne({ email });
+    if (driverExists) {
+      return res.status(400).json({ message: 'Driver already registered' });
+    }
+
+    // Encrypt password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create Driver
+    const driver = await Driver.create({
+      name,
+      nic,
+      licenseNumber,
+      email,
+      phone,
+      password: hashedPassword,
+    });
+
+    if (driver) {
+      res.status(201).json({
+        success: true,
+        _id: driver.id,
+        name: driver.name,
+        email: driver.email,
+        role: 'driver',
+        token: generateToken(driver.id),
+      });
+    } else {
+      res.status(400).json({ message: 'Invalid driver data' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Login User (Police or Driver)
 // @route   POST /api/auth/login
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 1. Check for police officer email
-    const officer = await Police.findOne({ email });
+    let user = null;
+    let role = '';
 
-    // 2. Check if officer exists AND password matches
-    if (officer && (await bcrypt.compare(password, officer.password))) {
+
+    const officer = await Police.findOne({ email });
+    
+    if (officer) {
+      user = officer;
+      role = officer.role; // 'officer' or 'admin'
+    } else {
+     
+      const driver = await Driver.findOne({ email });
+      if (driver) {
+        user = driver;
+        role = 'driver';
+      }
+    }
+
+   
+    if (user && (await bcrypt.compare(password, user.password))) {
       res.json({
         success: true,
-        _id: officer.id,
-        name: officer.name,
-        email: officer.email,
-        role: officer.role, // 'officer' or 'admin'
-        token: generateToken(officer.id),
+        _id: user.id,
+        name: user.name,
+        email: user.email,
+        role: role, 
+        token: generateToken(user.id),
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
-module.exports = { requestVerification, verifyOTP, registerPolice, loginUser};
+
+module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver, loginUser};
