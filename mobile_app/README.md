@@ -1,18 +1,4 @@
-# mobile_app
 
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
 # Mobile App (Flutter)
@@ -108,3 +94,46 @@ mobile_app/
 - Continue improving code structure and configuration.
 
 ---
+
+## Recent Updates – Police Officer Registration & Login Implementation
+
+### New Screens
+
+- **PoliceSignupScreen**
+  - 3-step stepper form: handles OTP request, verification, and profile creation.
+  - Input validation for NIC and phone number.
+  - Searchable dropdown for station selection using `dropdown_search`.
+- **LoginScreen**
+  - Updated to support backend authentication.
+
+### Services
+
+- **AuthService**
+  - Handles HTTP requests to backend for login, registration, and fetching stations.
+- **Token Management**
+  - Uses `flutter_secure_storage` to securely store JWT tokens locally.
+
+### Key Packages Added
+
+- `http`: For API communication.
+- `flutter_secure_storage`: For secure local data storage.
+- `dropdown_search`: For searchable station selection dropdown.
+
+### Configuration
+
+- Updated `AndroidManifest.xml` to allow cleartext traffic for local backend testing.
+
+## How to Run
+1. Install dependencies:
+   ```bash
+   flutter pub get
+   ```
+2. Run the app:
+   ```bash
+   flutter run
+   ```
+
+## Next Steps
+- Continue UI/UX improvements.
+- Add more features and screens.
+- Expand integration with backend API.

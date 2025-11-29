@@ -111,40 +111,34 @@ const verifyOTP = async (req, res) => {
 // @desc    Register New Police Officer
 // @route   POST /api/auth/register-police
 const registerPolice = async (req, res) => {
-  const { name, badgeNumber, email, password, station, otp } = req.body;
+  
+  const { name, badgeNumber, email, password, station, otp, nic, phone } = req.body;
 
   try {
-
-    //check actually otp is verified
     const verifiedRecord = await Verification.findOne({ badgeNumber, otp });
     if (!verifiedRecord) {
       return res.status(401).json({ message: 'Unauthorized: Please verify OTP first' });
     }
 
-
-    //check user already sign up
     const officerExists = await Police.findOne({ badgeNumber });
     if (officerExists) {
       return res.status(400).json({ message: 'Officer already registered' });
     }
 
-    
-    //encript the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    
-    //save the details of policemen in database
+   
     const officer = await Police.create({
       name,
       badgeNumber,
       email,
+      nic,    
+      phone,  
       password: hashedPassword,
       station,
     });
 
-   
-    //clear the used OTP
     await Verification.deleteMany({ badgeNumber });
 
     if (officer) {
@@ -153,15 +147,45 @@ const registerPolice = async (req, res) => {
         _id: officer.id,
         name: officer.name,
         email: officer.email,
-        token: generateToken(officer.id), //send the Login Token 
+        token: generateToken(officer.id),
       });
     } else {
       res.status(400).json({ message: 'Invalid officer data' });
     }
 
   } catch (error) {
+    // 3. Terminal එකේ Error එක හරියට බලාගන්න මේ console.log එක දාන්න
+    console.error("Register Error:", error.message); 
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
-module.exports = { requestVerification, verifyOTP, registerPolice};
+// @desc    Login User (Police)
+// @route   POST /api/auth/login
+const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // 1. Check for police officer email
+    const officer = await Police.findOne({ email });
+
+    // 2. Check if officer exists AND password matches
+    if (officer && (await bcrypt.compare(password, officer.password))) {
+      res.json({
+        success: true,
+        _id: officer.id,
+        name: officer.name,
+        email: officer.email,
+        role: officer.role, // 'officer' or 'admin'
+        token: generateToken(officer.id),
+      });
+    } else {
+      res.status(401).json({ message: 'Invalid email or password' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+module.exports = { requestVerification, verifyOTP, registerPolice, loginUser};

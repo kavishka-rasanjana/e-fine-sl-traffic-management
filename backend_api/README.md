@@ -1,21 +1,71 @@
 
-# Backend API
 
-- Node.js Express backend for E-Fine SL project.
-- MongoDB database connection using Mongoose.
-- Police registration OTP verification workflow implemented.
-- Email sending via Gmail (nodemailer) for verification codes to OIC.
-- API endpoint `/api/auth/request-verification`:
-	- Accepts badge number and station code.
-	- Validates police station.
-	- Generates and stores OTP for officer registration.
-	- Sends styled HTML email to station's official email with OTP and officer details.
-- Environment variables required:
-	- `MONGO_URI` (MongoDB connection string)
-	- `EMAIL_USER` (Gmail address for nodemailer)
-	- `EMAIL_PASS` (Gmail app password)
-- Express server setup with JSON body parsing and basic root endpoint.
-- Modular structure: controllers, models, routes, middleware, utils.
+# Backend API – Police Authentication Module
+
+## New Features
+
+- **Police Station Master Data Seeding**
+	- Seeder script (`seeder.js`) to populate station data.
+- **Email-based OTP Verification**
+	- Sends OTP to OIC's official email using nodemailer.
+- **Secure Police Registration & Login**
+	- JWT authentication for police officers.
+
+## Database Models
+
+- **Station**
+	- Stores station name, district, and official OIC email.
+- **Verification**
+	- Stores temporary OTP codes for registration.
+- **Police**
+	- Stores officer details: Name, BadgeID, NIC, Phone, Password.
+
+## API Endpoints
+
+- `POST /api/auth/request-verification`
+	- Sends OTP to OIC email for officer registration.
+- `POST /api/auth/verify-otp`
+	- Validates the OTP code.
+- `POST /api/auth/register-police`
+	- Creates police account after OTP validation.
+- `POST /api/auth/login`
+	- Authenticates officer and returns JWT token.
+- `GET /api/stations`
+	- Fetches list of police stations.
+
+### Example Request: Send OTP
+```http
+POST /api/auth/request-verification
+Content-Type: application/json
+
+{
+	"badgeNumber": "123456",
+	"stationCode": "GAL-HQ"
+}
+```
+
+### Example Request: Register Police
+```http
+POST /api/auth/register-police
+Content-Type: application/json
+
+{
+	"name": "John Doe",
+	"badgeNumber": "123456",
+	"email": "john@police.lk",
+	"nic": "199912345678",
+	"phone": "0712345678",
+	"password": "securePass123",
+	"station": "GAL-HQ",
+	"otp": "654321"
+}
+```
+
+## Environment Variables
+
+- `MONGO_URI` – MongoDB connection string
+- `EMAIL_USER` – Gmail address for nodemailer
+- `EMAIL_PASS` – Gmail app password
 
 ## Quick Start
 
@@ -24,20 +74,16 @@
 	 npm install
 	 ```
 2. Create a `.env` file in `backend_api/` with required variables.
-3. Start the server:
+3. Seed station data:
+	 ```bash
+	 node seeder.js
+	 ```
+4. Start the server:
 	 ```bash
 	 node server.js
 	 ```
 
-## Main Files Updated
-- `controllers/authController.js`: OTP request and email logic
-- `utils/sendEmail.js`: Nodemailer email utility
-- `config/db.js`: MongoDB connection
-- `server.js`: Express app setup and route registration
-
-## API Endpoints
-- `POST /api/auth/request-verification`: Request OTP for police registration
-
 ## Notes
+
 - Ensure Gmail account allows app password for nodemailer.
 - MongoDB must be running and accessible via provided URI.

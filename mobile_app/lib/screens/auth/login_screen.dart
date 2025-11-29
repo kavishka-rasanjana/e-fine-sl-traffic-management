@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import '../driver/driver_home_screen.dart'; // Driver Home Import
-import '../police/police_home_screen.dart'; // Police Home Import
-// import 'register_screen.dart'; 
+import '../../services/auth_service.dart';
+import '../driver/driver_home_screen.dart';
+import '../police/police_home_screen.dart';
+import 'police_signup_screen.dart'; // Import for navigation
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -10,60 +12,88 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-
+  final AuthService _authService = AuthService();
+  
+  // Controllers
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  
   bool _isObscure = true;
+  bool _isLoading = false;
 
-  
-  void _handleLogin() {
-    String email = _emailController.text;
-    
-   
-    if (email.contains('police')) {
-     
-      Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(builder: (context) => const PoliceHomeScreen()),
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _handleLogin() async {
+    // Basic Validation
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showError("Please enter email and password");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Call Backend API
+      final userData = await _authService.login(
+        _emailController.text, 
+        _passwordController.text
       );
-    } else {
-     
-      Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(builder: (context) => const DriverHomeScreen()),
-      );
+
+      if (!mounted) return;
+
+      // Check Role and Navigate
+      // Currently we only have 'officer', but later we will check for 'driver'
+      String role = userData['role'] ?? 'driver'; 
+
+      if (role == 'officer' || role == 'admin') {
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (context) => const PoliceHomeScreen()),
+        );
+      } else {
+        // Fallback for driver (future implementation)
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (context) => const DriverHomeScreen()),
+        );
+      }
+
+    } catch (e) {
+      _showError(e.toString().replaceAll("Exception: ", ""));
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, 
+      backgroundColor: Colors.white,
       body: Center(
-        child: SingleChildScrollView( 
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              
+              // Logo
               Image.asset(
-                'assets/icons/app_icon/app_logo_circle.png', 
+                'assets/icons/app_icon/app_logo_circle.png',
                 height: 100,
               ),
               const SizedBox(height: 10),
               
-              
               const Text(
-                "e-Fine SL",
+                "E-Fine SL",
                 style: TextStyle(fontSize: 20, color: Colors.black54),
               ),
               const SizedBox(height: 30),
 
-              // 3. Welcome Text
               const Text(
-                "Welcome to E-Fine SL",
+                "Welcome Back",
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -72,6 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
 
+              // Email Input
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -88,19 +119,19 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 5. Password Input
+              // Password Input
               TextField(
                 controller: _passwordController,
-                obscureText: _isObscure, 
+                obscureText: _isObscure,
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline), 
+                  prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isObscure ? Icons.visibility_off : Icons.visibility,
                     ),
                     onPressed: () {
                       setState(() {
-                        _isObscure = !_isObscure; 
+                        _isObscure = !_isObscure;
                       });
                     },
                   ),
@@ -115,49 +146,50 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 6. Login Button (Green Color)
+              // Login Button
               SizedBox(
-                width: double.infinity, 
+                width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: _handleLogin,
+                  onPressed: _isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green, 
-                    foregroundColor: Colors.white, 
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30), 
+                      borderRadius: BorderRadius.circular(30),
                     ),
                     elevation: 5,
                   ),
-                  child: const Text(
-                    "LOGIN",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "LOGIN",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // 7. Forgot Password
               TextButton(
                 onPressed: () {},
                 child: const Text("Forgot Password?", style: TextStyle(color: Colors.black54)),
               ),
 
-              // 8. Register Link
+              // Register Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("Don't have an account? "),
                   GestureDetector(
                     onTap: () {
-                       
-                       // Navigator.push(context, MaterialPageRoute(builder: (context) => RegisterScreen()));
+                       // Navigate to Police Registration
+                       Navigator.push(context, MaterialPageRoute(builder: (context) => const PoliceSignupScreen()));
                     },
                     child: const Text(
                       "Register Here",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Colors.blue, // Changed to Blue to indicate link
                       ),
                     ),
                   ),

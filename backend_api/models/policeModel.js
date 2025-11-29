@@ -2,37 +2,18 @@ const mongoose = require('mongoose');
 
 const policeSchema = mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: [true, 'Please add a name'],
-    },
-    badgeNumber: {
-      type: String,
-      required: [true, 'Please add a badge number'],
-      unique: true, // එක් අයෙකුට එක් අංකයයි
-    },
-    email: {
-      type: String,
-      required: [true, 'Please add an email'],
-      unique: true,
-    },
-    password: {
-      type: String,
-      required: [true, 'Please add a password'],
-    },
-    station: {
-      type: String, // උදා: GAL-HQ
-      required: true,
-    },
-    role: {
-      type: String,
-      enum: ['officer', 'admin'], // නිලධාරියාද නැත්නම් ඇඩ්මින්ද
-      default: 'officer',
-    },
+    name: { type: String, required: true },
+    badgeNumber: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
+   
+    nic: { type: String, required: true }, // NIC 
+    phone: { type: String, required: true }, // Phone Number 
+    // ------------------
+    password: { type: String, required: true },
+    station: { type: String, required: true },
+    role: { type: String, enum: ['officer', 'admin'], default: 'officer' },
   },
-  {
-    timestamps: true, // CreatedAt, UpdatedAt වෙලාවල් ඔටෝ වැටෙනවා
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model('Police', policeSchema);
