@@ -74,9 +74,27 @@ lib/
 - `flutter_secure_storage`: For secure local data storage.
 - `dropdown_search`: For searchable station selection dropdown.
 
+
 ### Configuration
 
 - Updated `AndroidManifest.xml` to allow cleartext traffic for local backend testing.
+
+- **Connecting Flutter App to Backend via Ngrok:**
+  1. Start your backend server and run Ngrok in your backend terminal:
+    ```bash
+    ngrok http 5000
+    ```
+  2. Copy the HTTPS Ngrok forwarding URL (e.g., `https://xxxx-xx-xx-xx.ngrok.io`).
+  3. Open the API Base URL configuration file:
+    - `lib/services/auth_service.dart`
+  4. Replace the `baseUrl` variable value with your new Ngrok URL, e.g.:
+    ```dart
+    static const String baseUrl = 'https://xxxx-xx-xx-xx.ngrok.io/api/auth';
+    ```
+  5. Save the file and restart your Flutter app.
+
+  **Important:**
+  - The free Ngrok URL changes every time you restart Ngrok. Always update the `baseUrl` in `auth_service.dart` before starting development or testing.
 
 ## How to Run
 1. Install dependencies:
