@@ -5,73 +5,34 @@ samples, guidance on mobile development, and a full API reference.
 
 This directory contains the Flutter mobile application for the e-Fine SL Traffic Management System.
 
-## Project Structure
+
+## File/Folder Architecture
 ```
-mobile_app/
-├── analysis_options.yaml
-├── android/
-│   ├── app/
-│   │   └── src/
-│   │       ├── debug/
-│   │       ├── main/
-│   │       └── profile/
-│   ├── build.gradle.kts
-│   ├── gradle/
-│   ├── gradle.properties
-│   ├── gradlew
-│   ├── gradlew.bat
-│   ├── local.properties
-│   ├── mobile_app_android.iml
-│   └── settings.gradle.kts
-├── assets/
-│   └── icons/
-│       └── app_icon/
-│           └── app_logo.png
-├── ios/
-│   ├── Flutter/
-│   ├── Runner/
-│   │   ├── Assets.xcassets/
-│   │   └── Base.lproj/
-│   ├── Runner.xcodeproj/
-│   ├── Runner.xcworkspace/
-│   └── RunnerTests/
-├── lib/
-│   ├── config/
-│   │   ├── constants.dart
-│   │   └── theme.dart
-│   ├── main.dart
-│   ├── models/
-│   ├── providers/
-│   ├── screens/
-│   │   ├── auth/
-│   │   │   └── login_screen.dart
-│   │   ├── driver/
-│   │   │   └── driver_home_screen.dart
-│   │   ├── police/
-│   │   │   └── police_home_screen.dart
-│   │   └── splash/
-│   │       └── splash_screen.dart
-│   ├── services/
-│   └── widgets/
-│       ├── custom_button.dart
-│       └── custom_textfield.dart
-├── linux/
-├── macos/
-├── pubspec.lock
-├── pubspec.yaml
-├── test/
-│   └── widget_test.dart
-├── web/
-│   ├── favicon.png
-│   ├── icons/
-│   │   ├── Icon-192.png
-│   │   ├── Icon-512.png
-│   │   ├── Icon-maskable-192.png
-│   │   └── Icon-maskable-512.png
-│   ├── index.html
-│   └── manifest.json
-├── windows/
-└── README.md
+lib/
+├── config/
+│   ├── constants.dart
+│   └── theme.dart
+├── main.dart
+├── models/                # (currently empty)
+├── providers/             # (currently empty)
+├── screens/
+│   ├── auth/
+│   │   ├── driver_signup_screen.dart
+│   │   ├── forgot_password_screen.dart
+│   │   ├── login_screen.dart
+│   │   ├── police_signup_screen.dart
+│   │   └── user_selection_screen.dart
+│   ├── driver/
+│   │   └── driver_home_screen.dart
+│   ├── police/
+│   │   └── police_home_screen.dart
+│   └── splash/
+│       └── splash_screen.dart
+├── services/
+│   └── auth_service.dart
+├── widgets/
+│   ├── custom_button.dart
+│   └── custom_textfield.dart
 ```
 
 ## Current Stage
