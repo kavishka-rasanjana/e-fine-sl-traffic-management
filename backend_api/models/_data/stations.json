@@ -1,0 +1,26 @@
+[
+  {
+    "stationCode": "GAL-HQ",
+    "name": "Galle Headquarters",
+    "district": "Galle",
+    "officialEmail": "akilashashimantha84@gmail.com"
+  },
+  {
+    "stationCode": "GAL-KARA",
+    "name": "Karapitiya Police",
+    "district": "Galle",
+    "officialEmail": "akilashashimantha84@gmail.com"
+  },
+  {
+    "stationCode": "COL-PET",
+    "name": "Pettah Police",
+    "district": "Colombo",
+    "officialEmail": "akilashashimantha84@gmail.com"
+  },
+  {
+    "stationCode": "MAT-HQ",
+    "name": "Matara Headquarters",
+    "district": "Matara",
+    "officialEmail": "akilashashimantha84@gmail.com"
+  }
+]

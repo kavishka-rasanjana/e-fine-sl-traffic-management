@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
+
+  @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final AuthService _authService = AuthService();
+  
+  // Steps: 0=Email, 1=OTP, 2=New Password
+  int _currentStep = 0;
+  bool _isLoading = false;
+
+  final _emailController = TextEditingController();
+  final _otpController = TextEditingController();
+  final _passController = TextEditingController();
+  final _confirmPassController = TextEditingController();
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
+
+  // Step 1: Send OTP
+  Future<void> _sendOTP() async {
+    if (_emailController.text.isEmpty) {
+      _showError("Please enter your email");
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await _authService.forgotPassword(_emailController.text);
+      _showSuccess("OTP sent to your email!");
+      setState(() => _currentStep = 1);
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Step 2: Verify OTP
+  Future<void> _verifyOTP() async {
+    if (_otpController.text.length < 6) {
+      _showError("Enter valid OTP");
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await _authService.verifyResetOTP(_emailController.text, _otpController.text);
+      setState(() => _currentStep = 2);
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Step 3: Reset Password
+  Future<void> _resetPassword() async {
+    if (_passController.text.length < 8) {
+      _showError("Password must be at least 8 chars");
+      return;
+    }
+    if (_passController.text != _confirmPassController.text) {
+      _showError("Passwords do not match");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _authService.resetPassword(
+        _emailController.text,
+        _otpController.text,
+        _passController.text
+      );
+      _showSuccess("Password Reset Successful!");
+      if (mounted) Navigator.pop(context); // Go back to Login
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Reset Password")),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // STEP 1: Email Input
+            if (_currentStep == 0) ...[
+              const Text("Enter your registered email to receive OTP", textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: "Email Address", border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _sendOTP,
+                  child: _isLoading ? const CircularProgressIndicator() : const Text("Send OTP"),
+                ),
+              ),
+            ],
+
+            // STEP 2: OTP Input
+            if (_currentStep == 1) ...[
+              const Text("Enter the 6-digit code sent to your email", textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 24, letterSpacing: 5),
+                decoration: const InputDecoration(labelText: "OTP Code", border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _verifyOTP,
+                  child: _isLoading ? const CircularProgressIndicator() : const Text("Verify OTP"),
+                ),
+              ),
+            ],
+
+            // STEP 3: New Password
+            if (_currentStep == 2) ...[
+              const Text("Create a new strong password", textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _passController,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: "New Password", border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: _confirmPassController,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _resetPassword,
+                  child: _isLoading ? const CircularProgressIndicator() : const Text("Reset Password"),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

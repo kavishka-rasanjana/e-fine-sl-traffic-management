@@ -1,0 +1,40 @@
+name: Backend CI (Node.js)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'backend_api/**' 
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'backend_api/**'
+
+defaults:
+  run:
+    working-directory: ./backend_api 
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x] 
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: backend_api/package-lock.json
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run Tests
+      run: npm test
