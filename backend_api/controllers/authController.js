@@ -236,6 +236,7 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: role, 
+        badgeNumber: user.badgeNumber,
         token: generateToken(user.id),
       });
     } else {

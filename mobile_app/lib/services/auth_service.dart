@@ -108,7 +108,7 @@ class AuthService {
       await _storage.write(key: 'token', value: responseData['token']);
       await _storage.write(key: 'role', value: responseData['role']);
       await _storage.write(key: 'name', value: responseData['name']);
-      
+      await _storage.write(key: 'badgeNumber', value: responseData['badgeNumber']);
       return responseData; // Return data to UI
     } else {
       // Login Failed

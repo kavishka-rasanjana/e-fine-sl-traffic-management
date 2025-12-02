@@ -21,6 +21,8 @@ app.use('/api/auth', require('./routes/authRoutes'));
 
 app.use('/api/stations', require('./routes/stationRoutes'));
 
+app.use('/api/fines', require('./routes/fineRoutes'));
+
 app.get('/', (req, res) => {
  
   res.send('API is running successfully!'); 
