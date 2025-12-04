@@ -3,7 +3,7 @@ import 'package:geolocator/geolocator.dart'; // GPS location ganna
 import 'package:geocoding/geocoding.dart';   // Address hoyanna
 import '../../services/fine_service.dart';    // Backend service eka
 
-import '../../services/fine_service.dart'; 
+// import '../../services/fine_service.dart'; 
 class NewFineScreen extends StatefulWidget {
   const NewFineScreen({super.key});
 
@@ -26,8 +26,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
   List<dynamic> _offenseList = []; // Database eken ena list eka
   bool _isLoading = true;          // Data load wena nisa
   bool _isGettingLocation = false; // GPS load wena nisa
-  List<dynamic> _offenseList = []; 
-  bool _isLoading = true;          
   
   // Selected Item Details
   String? _selectedOffenseId;      
@@ -37,10 +35,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
   void initState() {
     super.initState();
     _fetchOffenseData(); // Screen eka patan gannakotama data load karanna
-  }
-
-  // 1. Backend eken data ganna function eka
-    _fetchOffenseData(); 
   }
 
   
@@ -115,9 +109,11 @@ class _NewFineScreenState extends State<NewFineScreen> {
       }
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error getting location: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error getting location: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isGettingLocation = false);
@@ -128,21 +124,13 @@ class _NewFineScreenState extends State<NewFineScreen> {
   // Dropdown eka wenas weddi wada karana function eka
   void _onOffenseChanged(String? offenseId) {
     if (offenseId == null) return;
-
-
-  void _onOffenseChanged(String? offenseId) {
-    if (offenseId == null) return;
-
-  
     final selectedOffense = _offenseList.firstWhere(
       (item) => item['_id'] == offenseId,
       orElse: () => null,
     );
-
     if (selectedOffense != null) {
       setState(() {
         _selectedOffenseId = offenseId;
-        
         _fineAmount = double.tryParse(selectedOffense['amount'].toString()) ?? 0.0;
       });
     }
