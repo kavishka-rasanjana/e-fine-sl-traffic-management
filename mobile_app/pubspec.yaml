@@ -37,6 +37,7 @@ dependencies:
   http: ^1.6.0
   flutter_secure_storage: ^9.2.4
   dropdown_search: ^6.0.2
+  percent_indicator: ^4.2.5
 
 dev_dependencies:
   flutter_test:

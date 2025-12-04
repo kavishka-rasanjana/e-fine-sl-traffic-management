@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/fine_service.dart'; // <--- Meka wenas kala (../ wenuwata ../../)
-
+import '../../services/fine_service.dart'; 
 class NewFineScreen extends StatefulWidget {
   const NewFineScreen({super.key});
 
@@ -11,7 +10,7 @@ class NewFineScreen extends StatefulWidget {
 class _NewFineScreenState extends State<NewFineScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  // 2. Service Object eka hadaganna
+  // 2. Service Object 
   final FineService _fineService = FineService(); 
 
   // Text Controllers
@@ -20,20 +19,20 @@ class _NewFineScreenState extends State<NewFineScreen> {
   final TextEditingController _placeController = TextEditingController();
 
   // Data Variables
-  List<dynamic> _offenseList = []; // 3. List eka dan dynamic (API eken enne)
-  bool _isLoading = true;          // Data load wenakan loading ekak pennanna
+  List<dynamic> _offenseList = []; 
+  bool _isLoading = true;          
   
   // Selected Item Details
-  String? _selectedOffenseId;      // Thoragaththa eke ID eka
-  double _fineAmount = 0.0;        // Gana
+  String? _selectedOffenseId;      
+  double _fineAmount = 0.0;        
 
   @override
   void initState() {
     super.initState();
-    _fetchOffenseData(); // 4. Screen eka patan gannakotama data load karanna
+    _fetchOffenseData(); 
   }
 
-  // Backend eken data ganna function eka
+  
   Future<void> _fetchOffenseData() async {
     try {
       final offenses = await _fineService.getOffenses();
@@ -41,7 +40,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
       if (mounted) {
         setState(() {
           _offenseList = offenses;
-          _isLoading = false; // Load wela iwarai
+          _isLoading = false; 
         });
       }
     } catch (e) {
@@ -49,7 +48,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
         setState(() {
           _isLoading = false;
         });
-        // Error ekak awoth pennanna
+      
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading data. Check internet/server.'), 
@@ -60,11 +59,11 @@ class _NewFineScreenState extends State<NewFineScreen> {
     }
   }
 
-  // Dropdown eka wenas weddi wada karana function eka
+
   void _onOffenseChanged(String? offenseId) {
     if (offenseId == null) return;
 
-    // ID eken adala offense object eka list eken hoyaganna
+  
     final selectedOffense = _offenseList.firstWhere(
       (item) => item['_id'] == offenseId,
       orElse: () => null,
@@ -73,7 +72,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
     if (selectedOffense != null) {
       setState(() {
         _selectedOffenseId = offenseId;
-        // Backend eken ena 'amount' eka ganak widihata convert karaganna
+        
         _fineAmount = double.tryParse(selectedOffense['amount'].toString()) ?? 0.0;
       });
     }
@@ -85,10 +84,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
         const SnackBar(content: Text('Processing Fine...')),
       );
       
-      // Submit logic eka methana liyanna puluwan passe
-      print("License: ${_licenseController.text}");
-      print("Selected ID: $_selectedOffenseId");
-      print("Amount: $_fineAmount");
     }
   }
 
@@ -100,7 +95,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
         backgroundColor: const Color(0xFF0D47A1),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      // 5. Loading nam spinner eka pennanna, nathnam Form eka pennanna
+     
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator()) 
           : SingleChildScrollView(
@@ -150,7 +145,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
                     ),
                     const SizedBox(height: 15),
 
-                    // 6. DYNAMIC DROPDOWN (Wenas karapu pradhana thana)
+                
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Select Offense",
@@ -158,13 +153,12 @@ class _NewFineScreenState extends State<NewFineScreen> {
                         filled: true,
                         fillColor: Colors.grey[100],
                       ),
-                      value: _selectedOffenseId,
-                      // List eken items hadanna
+                      initialValue: _selectedOffenseId,
                       items: _offenseList.map<DropdownMenuItem<String>>((dynamic item) {
                         return DropdownMenuItem<String>(
-                          value: item['_id'], // Value eka vidihata ID eka
+                          value: item['_id'], 
                           child: Text(
-                            item['offenseName'], // Penwanne Nama
+                            item['offenseName'], 
                             overflow: TextOverflow.ellipsis,
                           ), 
                         );
