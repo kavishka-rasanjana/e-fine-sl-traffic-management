@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart'; // GPS location ganna
 import 'package:geocoding/geocoding.dart';   // Address hoyanna
 import '../../services/fine_service.dart';    // Backend service eka
 
+import '../../services/fine_service.dart'; 
 class NewFineScreen extends StatefulWidget {
   const NewFineScreen({super.key});
 
@@ -13,7 +14,7 @@ class NewFineScreen extends StatefulWidget {
 class _NewFineScreenState extends State<NewFineScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  // Service Object eka
+  // 2. Service Object 
   final FineService _fineService = FineService(); 
 
   // Text Controllers
@@ -25,10 +26,12 @@ class _NewFineScreenState extends State<NewFineScreen> {
   List<dynamic> _offenseList = []; // Database eken ena list eka
   bool _isLoading = true;          // Data load wena nisa
   bool _isGettingLocation = false; // GPS load wena nisa
+  List<dynamic> _offenseList = []; 
+  bool _isLoading = true;          
   
   // Selected Item Details
-  String? _selectedOffenseId;      // Thoragaththa eke ID eka
-  double _fineAmount = 0.0;        // Gana
+  String? _selectedOffenseId;      
+  double _fineAmount = 0.0;        
 
   @override
   void initState() {
@@ -37,6 +40,10 @@ class _NewFineScreenState extends State<NewFineScreen> {
   }
 
   // 1. Backend eken data ganna function eka
+    _fetchOffenseData(); 
+  }
+
+  
   Future<void> _fetchOffenseData() async {
     try {
       final offenses = await _fineService.getOffenses();
@@ -52,6 +59,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
         setState(() {
           _isLoading = false;
         });
+      
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading data. Check internet/server.'), 
@@ -121,6 +129,11 @@ class _NewFineScreenState extends State<NewFineScreen> {
   void _onOffenseChanged(String? offenseId) {
     if (offenseId == null) return;
 
+
+  void _onOffenseChanged(String? offenseId) {
+    if (offenseId == null) return;
+
+  
     final selectedOffense = _offenseList.firstWhere(
       (item) => item['_id'] == offenseId,
       orElse: () => null,
@@ -129,6 +142,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
     if (selectedOffense != null) {
       setState(() {
         _selectedOffenseId = offenseId;
+        
         _fineAmount = double.tryParse(selectedOffense['amount'].toString()) ?? 0.0;
       });
     }
@@ -140,10 +154,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
         const SnackBar(content: Text('Processing Fine...')),
       );
       
-      print("License: ${_licenseController.text}");
-      print("Selected ID: $_selectedOffenseId");
-      print("Amount: $_fineAmount");
-      print("Location: ${_placeController.text}");
     }
   }
 
@@ -155,6 +165,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
         backgroundColor: const Color(0xFF0D47A1),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
+     
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator()) 
           : SingleChildScrollView(
@@ -202,6 +213,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
                     ),
                     const SizedBox(height: 15),
 
+                
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Select Offense",
@@ -209,7 +221,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
                         filled: true,
                         fillColor: Colors.grey[100],
                       ),
-                      value: _selectedOffenseId,
+                      initialValue: _selectedOffenseId,
                       items: _offenseList.map<DropdownMenuItem<String>>((dynamic item) {
                         return DropdownMenuItem<String>(
                           value: item['_id'], 

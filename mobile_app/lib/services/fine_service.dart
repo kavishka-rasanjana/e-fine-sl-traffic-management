@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 
 class FineService {
   // ------------------------------------------------------------------
@@ -15,12 +15,12 @@ class FineService {
   // 1. Laptop eke CMD eka open karala 'ipconfig' gahanna.
   // 2. Ethana thiyena IPv4 Address eka aran methanata danna.
   // UDAHARANAYAK: 'http://192.168.1.10:5000/api/fines';
-  static const String baseUrl = 'http://192.168.8.191:5000/api/fines'; 
+  static const String baseUrl = 'http://192.168.8.114:5000/api/fines'; 
 
   // OPTION 3: Ngrok (Internet haraha yawanawa nam witharak meka ona)
   // static const String baseUrl = 'https://pluckiest-untolled-gwenda.ngrok-free.dev/api/fines';
   
-  final _storage = const FlutterSecureStorage();
+
 
   // Database eken Offense list eka ganna function eka
   Future<List<dynamic>> getOffenses() async {
