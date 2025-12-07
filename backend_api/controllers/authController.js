@@ -266,6 +266,9 @@ const loginUser = async (req, res) => {
         role: role, 
         badgeNumber: user.badgeNumber,
         token: generateToken(user.id),
+
+        isVerified: user.role === 'driver' ? user.isVerified : true, 
+        licenseNumber: user.role === 'driver' ? user.licenseNumber : null,
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
@@ -409,5 +412,42 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
-module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver,forgotPassword, verifyResetOTP, resetPassword, loginUser, getMe};
+// @desc    Verify Driver & Update License Details
+// @route   PUT /api/auth/verify-driver
+// @access  Private (Driver Only)
+const verifyDriver = async (req, res) => {
+  try {
+  //  console.log("RECEIVED DATA:", req.body);
+    const { licenseIssueDate, licenseExpiryDate, vehicleClasses } = req.body;
+
+   
+    const driver = await Driver.findById(req.user.id);
+
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    
+    driver.isVerified = true;
+    driver.licenseIssueDate = licenseIssueDate;
+    driver.licenseExpiryDate = licenseExpiryDate;
+    driver.vehicleClasses = vehicleClasses; 
+
+    await driver.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'License verified and profile updated',
+      driver 
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+
+
+module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver,forgotPassword, verifyResetOTP, resetPassword, loginUser, getMe, verifyDriver};
 

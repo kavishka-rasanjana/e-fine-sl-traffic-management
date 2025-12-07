@@ -25,7 +25,16 @@
   "license_label": "License No",
   "mobile_label": "Mobile No",
   "demerits_label": "Demerit Points",
-  "points_display": "{} Points"
+  "points_display": "{} Points",
 
+  "verified_driver": "Verified Driver",
+  "not_verified": "Not Verified",
+  "personal_details": "Personal Details",
+  "digital_license_info": "Digital License Info",
+  "issue_date": "Issue Date",
+  "expiry_date": "Expiry Date",
+  "allowed_vehicles": "Allowed Vehicles",
+
+  "no_classes": "No classes found"
 
 }

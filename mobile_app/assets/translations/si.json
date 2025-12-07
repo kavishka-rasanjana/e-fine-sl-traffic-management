@@ -25,7 +25,17 @@
   "license_label": "බලපත්‍ර අංකය",
   "mobile_label": "දුරකථන අංකය",
   "demerits_label": "දඩ ලකුණු",
-  "points_display": "ලකුණු {}"
+  "points_display": "ලකුණු {}",
+
+  "verified_driver": "තහවුරු කළ රියදුරු",
+  "not_verified": "තහවුරු කර නොමැත",
+  "personal_details": "පුද්ගලික තොරතුරු",
+  "digital_license_info": "ඩිජිටල් බලපත්‍ර තොරතුරු",
+  "issue_date": "නිකුත් කළ දිනය",
+  "expiry_date": "කල් ඉකුත් වන දිනය",
+  "allowed_vehicles": "අවසර ලත් වාහන",
+
+  "no_classes": "වාහන පන්ති හමු නොවීය"
 
 
 }
