@@ -13,19 +13,26 @@ const requestVerification = async (req, res) => {
   const { badgeNumber, stationCode } = req.body;
 
   try {
-   
+    //check whether batch number is already exist
+    const existingOfficer = await Police.findOne({ badgeNumber });
+    
+    if (existingOfficer) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'This Badge Number is already registered. Please Login.' 
+      });
+    }
+    // -------------------------------------------------------------
+
     const station = await Station.findOne({ stationCode });
 
     if (!station) {
       return res.status(404).json({ message: 'Police Station not found' });
     }
-
-    
+   
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     
     await Verification.deleteMany({ badgeNumber });
-
     
     await Verification.create({
       badgeNumber,
@@ -167,17 +174,36 @@ const registerDriver = async (req, res) => {
   const { name, nic, licenseNumber, email, phone, password } = req.body;
 
   try {
-    // Check if driver exists
-    const driverExists = await Driver.findOne({ email });
-    if (driverExists) {
-      return res.status(400).json({ message: 'Driver already registered' });
-    }
+    // --- Validation Part
+  
+    const existingDriver = await Driver.findOne({
+      $or: [
+        { email: email },
+        { nic: nic },
+        { licenseNumber: licenseNumber }
+      ]
+    });
 
-    // Encrypt password
+    if (existingDriver) {
+      let message = 'Driver already registered';
+      
+      if (existingDriver.email === email) {
+        message = 'This Email is already registered.';
+      } else if (existingDriver.nic === nic) {
+        message = 'This NIC is already registered.';
+      } else if (existingDriver.licenseNumber === licenseNumber) {
+        message = 'This License Number is already registered.';
+      }
+
+      return res.status(400).json({ message });
+    }
+    // -------------------------------------
+
+    // 3. Password Encrypt 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create Driver
+    // 4. create Driver and save in  Database 
     const driver = await Driver.create({
       name,
       nic,
@@ -199,7 +225,9 @@ const registerDriver = async (req, res) => {
     } else {
       res.status(400).json({ message: 'Invalid driver data' });
     }
+
   } catch (error) {
+    console.error("Driver Register Error:", error.message);
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
