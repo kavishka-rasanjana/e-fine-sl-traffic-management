@@ -180,6 +180,27 @@ class AuthService {
     if (response.statusCode != 200) {
       throw Exception(jsonDecode(response.body)['message']);
     }
-  }
+  
 
 }
+// 9. Get User Profile
+
+ Future<Map<String, dynamic>> getUserProfile() async {
+    String? token = await _storage.read(key: 'token'); 
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/me'), 
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token', 
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load profile');
+    }
+  }
+
+  }

@@ -155,7 +155,7 @@ const registerPolice = async (req, res) => {
     }
 
   } catch (error) {
-    // 3. Terminal එකේ Error එක හරියට බලාගන්න මේ console.log එක දාන්න
+    
     console.error("Register Error:", error.message); 
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
@@ -374,6 +374,12 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// @desc    Get Current User Profile
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+  res.status(200).json(req.user);
+};
 
-module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver,forgotPassword, verifyResetOTP, resetPassword, loginUser};
+module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver,forgotPassword, verifyResetOTP, resetPassword, loginUser, getMe};
 

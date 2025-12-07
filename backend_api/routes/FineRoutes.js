@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOffenses, addOffense } = require('../controllers/fineController');
+const { getOffenses, addOffense } = require('../controllers/FineController');
 
 // URL: /api/fines/offenses
 router.get('/offenses', getOffenses);
