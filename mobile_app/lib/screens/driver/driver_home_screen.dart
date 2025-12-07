@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/screens/driver/profile_screen.dart';
+import 'package:mobile_app/services/auth_service.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import '../auth/login_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -11,27 +14,37 @@ class DriverHomeScreen extends StatefulWidget {
 }
 
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
-
-  //storage that kepp session data
+  
   final _storage = const FlutterSecureStorage();
   
-  //  Variables
+
   String driverName = "Loading..."; 
   int currentPoints = 18; 
   int maxPoints = 24;
 
+ 
+  String _getGreeting() {
+    var hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning,';
+    } else if (hour < 17) {
+      return 'Good Afternoon,';
+    } else {
+      return 'Good Evening,';
+    }
+  }
+
+  bool hasPendingFines = true;
+
   @override
   void initState() {
     super.initState();
-   
     _loadUserData();
   }
 
- 
+  // --- Session Management Part ---
   Future<void> _loadUserData() async {
-   
     String? name = await _storage.read(key: 'name');
-    
     if (mounted) {
       setState(() {
         driverName = name ?? "Driver"; 
@@ -39,17 +52,97 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     }
   }
 
-  
+  // Logout Function
   Future<void> _logout() async {
-    await _storage.deleteAll(); 
+    await _storage.deleteAll();
     if (mounted) {
-      
       Navigator.pushAndRemoveUntil(
         context, 
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (route) => false 
       );
     }
+  }
+
+ // --- PROFILE DETAILS FUNCTION ---
+
+
+  void _showProfileDetails() async {
+    // 1. Loading Dialog
+    showDialog(
+      context: context, 
+      barrierDismissible: false,
+      builder: (c) => const Center(child: CircularProgressIndicator())
+    );
+
+    try {
+      // 2. Fetch Data from Backend
+      final userData = await AuthService().getUserProfile();
+      
+      // Check mounted
+      if (!mounted) return;
+
+      // 3. Close Loading
+      Navigator.pop(context); 
+      
+      // 4. Navigate to New Profile Page 
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(userData: userData),
+        ),
+      );
+      
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); 
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+    }
+  }
+
+
+  // --- Helpers for Status Colors ---
+  Color _getStatusColor() {
+    if (currentPoints > 20) return Colors.green;
+    if (currentPoints > 10) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _getStatusMessage() {
+    if (currentPoints > 20) return "Excellent Standing";
+    if (currentPoints > 10) return "Warning Level";
+    return "High Risk of Suspension!";
+  }
+
+  // Helper for Action Grid
+  Widget _buildActionCard(IconData icon, String title, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withAlpha((0.05 * 255).toInt()), blurRadius: 5, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: color.withAlpha((0.1 * 255).toInt()),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 30, color: color),
+            ),
+            const SizedBox(height: 10),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -67,14 +160,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout, // Logout button
+            onPressed: _logout, 
           ),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 1. HEADER SECTION ( Session Data)
+            // 1. HEADER SECTION
             Container(
               padding: const EdgeInsets.only(left: 20, right: 20, bottom: 30),
               decoration: BoxDecoration(
@@ -88,14 +181,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 children: [
                   const CircleAvatar(
                     radius: 30,
-                    backgroundImage: AssetImage('assets/icons/app_icon/app_logo.png'), 
+                    backgroundImage: AssetImage('assets/icons/app_icon/app_logo_circle.png'), 
                     backgroundColor: Colors.white,
                   ),
                   const SizedBox(width: 15),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Good Morning,", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      Text( _getGreeting(), style: const TextStyle(color: Colors.white70, fontSize: 14),),
                       Text(
                         driverName,
                         style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
@@ -105,6 +198,49 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+
+            // --- PENDING FINE ALERT 
+            if (hasPendingFines)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50], 
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.red.withAlpha((0.5 * 255).toInt())),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+                      const SizedBox(width: 15),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Unpaid Fines Detected!",
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 16),
+                            ),
+                            Text(
+                              "You have pending fines. Pay now to avoid demerit points.",
+                              style: TextStyle(color: Colors.black54, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward, color: Colors.red),
+                        onPressed: () {
+                          // to send Pay Fines Screen
+                        },
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            // ----------------------------------------
 
             const SizedBox(height: 20),
 
@@ -167,18 +303,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 crossAxisSpacing: 15,
                 mainAxisSpacing: 15,
                 children: [
-                  _buildActionCard(Icons.payment, "Pay Fines", Colors.orange, () {
-                    // Navigate to Pay Screen
-                  }),
-                  _buildActionCard(Icons.history, "History", Colors.blue, () {
-                    // Navigate to History
-                  }),
-                  _buildActionCard(Icons.wallet, "Digital Wallet", Colors.purple, () {
-                    // Navigate to Wallet
-                  }),
-                  _buildActionCard(Icons.report_problem, "Report", Colors.red, () {
-                    // Navigate to Report
-                  }),
+                  _buildActionCard(Icons.payment, "Pay Fines", Colors.orange, () { }),
+                  _buildActionCard(Icons.history, "History", Colors.blue, () { }),
+                  _buildActionCard(Icons.wallet, "Digital Wallet", Colors.purple, () { }),
+                  _buildActionCard(Icons.report_problem, "Report", Colors.red, () { }),
                 ],
               ),
             ),
@@ -198,52 +326,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
         onTap: (index) {
-          // Navigation logic here later
+          if (index == 2) { // Profile Tab එක එබුවොත්
+            _showProfileDetails();
+          }
         },
-      ),
-    );
-  }
-
-  // --- Helpers 
-
-  Color _getStatusColor() {
-    if (currentPoints > 20) return Colors.green;
-    if (currentPoints > 10) return Colors.orange;
-    return Colors.red;
-  }
-
-  String _getStatusMessage() {
-    if (currentPoints > 20) return "Excellent Standing";
-    if (currentPoints > 10) return "Warning Level";
-    return "High Risk of Suspension!";
-  }
-
-  Widget _buildActionCard(IconData icon, String title, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withAlpha((0.05 * 255).toInt()), blurRadius: 5, offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: color.withAlpha((0.1 * 255).toInt()),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 30, color: color),
-            ),
-            const SizedBox(height: 10),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
       ),
     );
   }
