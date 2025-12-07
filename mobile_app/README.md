@@ -1,126 +1,88 @@
+# How to Run the Mobile App
 
-samples, guidance on mobile development, and a full API reference.
+To run the E-Fine SL Driver Mobile Application:
 
-# Mobile App (Flutter)
+1. Make sure you have Flutter installed. If not, follow the official guide: https://docs.flutter.dev/get-started/install
+2. Connect your Android device (or use an emulator) and enable USB debugging.
+3. Open a terminal in the `mobile_app` directory.
+4. Install dependencies:
+  ```bash
+  flutter pub get
+  ```
+5. Run the app:
+  ```bash
+  flutter run
+  ```
+6. For multi-language support, ensure the `assets/translations/en.json` and `assets/translations/si.json` files are present.
 
-This directory contains the Flutter mobile application for the e-Fine SL Traffic Management System.
+**Note:**
+- If connecting to a backend API, update the base URL in `lib/services/auth_service.dart` as needed.
+- For iOS, additional setup may be required (see Flutter docs).
 
+# E-Fine SL Driver Mobile Application
 
-## File/Folder Architecture
+## Recent Updates & Features Implemented
+
+### Smart License Scanning (OCR)
+- Integrated Google ML Kit for scanning driving licenses.
+- Automatically detects Issue/Expiry dates and Vehicle Classes using advanced geometric row matching logic.
+- Includes a validation step to ensure the scanned license matches the registered user's license number.
+
+### Dynamic Driver Dashboard
+- Implemented a comprehensive 'Driver Home Screen' featuring:
+  - Real-time 'Demerit Point Meter' (using percent_indicator).
+  - Dynamic greeting system based on the time of day.
+  - 'Unpaid Fines Alert' system for immediate notifications.
+
+### Digital Profile System
+- Developed a detailed Profile Screen displaying:
+  - Personal information.
+  - License status (Active/Suspended).
+  - Vehicle classes in a digital card format.
+- Data is securely fetched from the backend API (`/me`).
+
+### Localization (Multi-language)
+- Full support for English and Sinhala languages using easy_localization.
+- Dynamic translation for API data fields, including status messages.
+
+### Secure Authentication
+- Driver Registration with rigorous validation (NIC, Phone, Strong Password).
+- Role-Based Login system for enhanced security.
+
+## Updated Folder Structure
+
 ```
-lib/
-├── config/
-│   ├── constants.dart
-│   └── theme.dart
-├── main.dart
-├── models/                # (currently empty)
-├── providers/             # (currently empty)
-├── screens/
-│   ├── auth/
-│   │   ├── driver_signup_screen.dart
-│   │   ├── forgot_password_screen.dart
-│   │   ├── login_screen.dart
-│   │   ├── police_signup_screen.dart
-│   │   └── user_selection_screen.dart
-│   ├── driver/
-│   │   └── driver_home_screen.dart
-│   ├── police/
-│   │   └── police_home_screen.dart
-│   └── splash/
-│       └── splash_screen.dart
-├── services/
-│   └── auth_service.dart
-├── widgets/
-│   ├── custom_button.dart
-│   └── custom_textfield.dart
+📦 lib/
+ ├── main.dart                # App entry point
+ ├── config/                  # App-wide configuration (themes, constants)
+ ├── models/                  # Data models (Driver, Police, Offense, etc.)
+ ├── providers/               # State management (Provider classes)
+ ├── screens/
+ │    ├── auth/               # Authentication screens
+ │    │    ├── driver_signup_screen.dart
+ │    │    ├── forgot_password_screen.dart
+ │    │    ├── login_screen.dart
+ │    │    ├── police_signup_screen.dart
+ │    │    └── user_selection_screen.dart
+ │    ├── driver/             # Driver features
+ │    │    ├── driver_home_screen.dart
+ │    │    ├── profile_screen.dart
+ │    │    └── license_verification_screen.dart
+ │    ├── police/             # Police features
+ │    │    └── police_home_screen.dart
+ │    └── splash/             # Splash and onboarding
+ │         └── splash_screen.dart
+ ├── services/                # API and business logic
+ │    └── auth_service.dart
+ └── widgets/                 # Reusable UI components
+      ├── custom_button.dart
+      └── custom_textfield.dart
+
+🎨 assets/
+ ├── icons/
+ │    └── app_icon/           # App icons
+ └── translations/            # Localization files
+      ├── en.json
+      └── si.json
 ```
-
-## Current Stage
-- Material 3 design implemented.
-- Main screen and counter demo working.
-- App successfully builds and runs on Android (V2419) and other platforms.
-- Launcher icons configured.
-- Project structure updated for better organization (see `lib/config/constants.dart`).
-- Recent commits include configuration improvements and code cleanup.
-
-## How to Run
-1. Connect your Android device and enable USB debugging.
-2. Run `flutter devices` to verify device connection.
-3. Run `flutter run` to launch the app.
-
----
-
-## Recent Updates – Police Officer Registration & Login Implementation
-
-### New Screens
-
-- **PoliceSignupScreen**
-  - 3-step stepper form: handles OTP request, verification, and profile creation.
-  - Input validation for NIC and phone number.
-  - Searchable dropdown for station selection using `dropdown_search`.
-- **LoginScreen**
-  - Updated to support backend authentication.
-
-### Services
-
-- **AuthService**
-  - Handles HTTP requests to backend for login, registration, and fetching stations.
-- **Token Management**
-  - Uses `flutter_secure_storage` to securely store JWT tokens locally.
-
-### Key Packages Added
-
-- `http`: For API communication.
-- `flutter_secure_storage`: For secure local data storage.
-- `dropdown_search`: For searchable station selection dropdown.
-
-
-### Configuration
-
-- Updated `AndroidManifest.xml` to allow cleartext traffic for local backend testing.
-
-- **Connecting Flutter App to Backend via Ngrok:**
-  1. Start your backend server and run Ngrok in your backend terminal:
-    ```bash
-    ngrok http 5000
-    ```
-  2. Copy the HTTPS Ngrok forwarding URL (e.g., `https://xxxx-xx-xx-xx.ngrok.io`).
-  3. Open the API Base URL configuration file:
-    - `lib/services/auth_service.dart`
-  4. Replace the `baseUrl` variable value with your new Ngrok URL, e.g.:
-    ```dart
-    static const String baseUrl = 'https://xxxx-xx-xx-xx.ngrok.io/api/auth';
-    ```
-  5. Save the file and restart your Flutter app.
-
-  **Important:**
-  - The free Ngrok URL changes every time you restart Ngrok. Always update the `baseUrl` in `auth_service.dart` before starting development or testing.
-
-## How to Run
-1. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
-2. Run the app:
-   ```bash
-   flutter run
-   ```
-
-
-## Recent Changes & Next Steps
-
-### Recent Changes
-- Implemented PoliceSignupScreen with 3-step registration (OTP request, verification, profile creation).
-- Added input validation for NIC and phone number in registration.
-- Integrated backend authentication in LoginScreen with JWT token management.
-- Added searchable dropdown for station selection using `dropdown_search`.
-- AuthService now handles registration, login, and station fetching via HTTP.
-- Secure token storage using `flutter_secure_storage`.
-- Updated AndroidManifest.xml for local backend testing.
-- Add 'Forgot Password' and password reset flow for police login and driver login.
-
-### Next Steps
-- Implement Police Home Page with dashboard, actions, and notifications.
-- Develop Driver Home Page with driver-specific features and UI.
-- Add user profile management and editing.
-- Expand authentication, error handling, and user management features.
+> This creative structure highlights the modular design and separation of concerns, making the codebase easy to navigate and maintain.
