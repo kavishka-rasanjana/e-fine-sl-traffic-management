@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class FineService {
   // ------------------------------------------------------------------
@@ -45,11 +46,11 @@ class FineService {
       if (response.statusCode == 201) {
         return true; 
       } else {
-        print("Server Error: ${response.body}");
+        debugPrint("Server Error: ${response.body}");
         return false; 
       }
     } catch (e) {
-      print("App Connection Error: $e");
+      debugPrint("App Connection Error: $e");
       return false;
     }
   }

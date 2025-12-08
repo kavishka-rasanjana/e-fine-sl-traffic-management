@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // 1. Storage Import
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
 import '../../services/fine_service.dart'; 
 
 class FineHistoryScreen extends StatefulWidget {
@@ -11,8 +11,6 @@ class FineHistoryScreen extends StatefulWidget {
 
 class _FineHistoryScreenState extends State<FineHistoryScreen> {
   final FineService _fineService = FineService();
-  
-  // 2. Storage Object
   final _storage = const FlutterSecureStorage();
   
   List<dynamic> _historyList = [];
@@ -24,14 +22,9 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
     _fetchHistory();
   }
 
-  // 3. History ගන්න Function එක (Updated)
   Future<void> _fetchHistory() async {
     try {
-      // මුලින්ම Badge Number එක Storage එකෙන් ගන්නවා
       String? badge = await _storage.read(key: 'badgeNumber');
-      
-      // Service එකට Badge Number එක pass කරනවා
-      // (badge එක null නම් හිස් string එකක් යවනවා)
       final data = await _fineService.getFineHistory(badge ?? "");
       
       if (mounted) {
@@ -43,8 +36,7 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        // Error handling
-        print("Error: $e");
+        debugPrint("Error: $e"); // foundation නැතුවට මේක වැඩ කරනවා material එක නිසා
       }
     }
   }
@@ -76,7 +68,6 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Offense Name & Amount
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -93,8 +84,6 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
                               ],
                             ),
                             const Divider(),
-                            
-                            // Details
                             const SizedBox(height: 5),
                             Row(
                               children: [
@@ -120,8 +109,6 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
                               ],
                             ),
                             const SizedBox(height: 10),
-                            
-                            // Date
                             Align(
                               alignment: Alignment.bottomRight,
                               child: Text(
