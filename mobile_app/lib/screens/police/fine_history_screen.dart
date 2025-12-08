@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// Folder එක ඇතුලට ගිය නිසා ../ දෙකක් පාවිච්චි කරන්න ඕන Service එක හොයාගන්න
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // 1. Storage Import
 import '../../services/fine_service.dart'; 
 
 class FineHistoryScreen extends StatefulWidget {
@@ -11,6 +11,10 @@ class FineHistoryScreen extends StatefulWidget {
 
 class _FineHistoryScreenState extends State<FineHistoryScreen> {
   final FineService _fineService = FineService();
+  
+  // 2. Storage Object
+  final _storage = const FlutterSecureStorage();
+  
   List<dynamic> _historyList = [];
   bool _isLoading = true;
 
@@ -20,9 +24,15 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
     _fetchHistory();
   }
 
+  // 3. History ගන්න Function එක (Updated)
   Future<void> _fetchHistory() async {
     try {
-      final data = await _fineService.getFineHistory();
+      // මුලින්ම Badge Number එක Storage එකෙන් ගන්නවා
+      String? badge = await _storage.read(key: 'badgeNumber');
+      
+      // Service එකට Badge Number එක pass කරනවා
+      // (badge එක null නම් හිස් string එකක් යවනවා)
+      final data = await _fineService.getFineHistory(badge ?? "");
       
       if (mounted) {
         setState(() {
@@ -33,7 +43,7 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        // Error handling removed for brevity in display, but you can keep the Snackbar
+        // Error handling
         print("Error: $e");
       }
     }
@@ -50,7 +60,7 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _historyList.isEmpty
-              ? const Center(child: Text("No fines issued yet.", style: TextStyle(fontSize: 16, color: Colors.grey)))
+              ? const Center(child: Text("No fines issued by you yet.", style: TextStyle(fontSize: 16, color: Colors.grey)))
               : ListView.builder(
                   padding: const EdgeInsets.all(15),
                   itemCount: _historyList.length,

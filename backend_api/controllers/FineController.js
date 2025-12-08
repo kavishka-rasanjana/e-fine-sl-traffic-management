@@ -1,13 +1,12 @@
 const Offense = require('../models/offenseModel');
-const IssuedFine = require('../models/issuedFineModel'); // Step 1 දී අපි හදපු අලුත් Model එක මෙතනට ගන්නවා
+const IssuedFine = require('../models/issuedFineModel'); 
 
 // @desc    Get all fine types / offenses
 // @route   GET /api/fines/offenses
 // @access  Public (Mobile App)
 const getOffenses = async (req, res) => {
   try {
-    // Database eken okkoma offenses tika ganna
-    const offenses = await Offense.find({}).sort({ offenseName: 1 }); // Namata anuwa piliwelata
+    const offenses = await Offense.find({}).sort({ offenseName: 1 }); 
     res.status(200).json(offenses);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
@@ -33,16 +32,17 @@ const addOffense = async (req, res) => {
 // @desc    Issue a new fine (Save to Database)
 // @route   POST /api/fines/issue
 const issueFine = async (req, res) => {
-    // Mobile App එකෙන් එවන Data ටික මෙතනට ගන්නවා
-    const { licenseNumber, vehicleNumber, offenseId, offenseName, amount, place } = req.body;
+    // 1. policeOfficerId කියන එකත් අලුතෙන් body එකෙන් ගන්නවා
+    const { licenseNumber, vehicleNumber, offenseId, offenseName, amount, place, policeOfficerId } = req.body;
 
     // Data හරියට ඇවිල්ලද බලනවා (Validation)
-    if (!licenseNumber || !vehicleNumber || !offenseId || !place) {
-        return res.status(400).json({ message: 'All fields are required (License, Vehicle, Offense, Place)' });
+    // policeOfficerId එකත් අනිවාර්ය කරනවා
+    if (!licenseNumber || !vehicleNumber || !offenseId || !place || !policeOfficerId) {
+        return res.status(400).json({ message: 'All fields are required' });
     }
 
     try {
-        // Database එකේ "IssuedFines" කියන table එකට මේ data ටික save කරනවා
+        // Database එකට save කරනවා
         const fine = await IssuedFine.create({
             licenseNumber,
             vehicleNumber,
@@ -50,10 +50,10 @@ const issueFine = async (req, res) => {
             offenseName,
             amount,
             place,
-            // status සහ date ඉබේම වැටෙනවා model එකේ default දීලා තියෙන නිසා
+            policeOfficerId, // දඩේ ගැහුවේ කවුද කියලා මෙතනින් Save වෙනවා
+            // status සහ date ඉබේම වැටෙනවා
         });
 
-        // Save වුනාම සාර්ථක බව කියනවා (201 Created)
         res.status(201).json(fine); 
     } catch (error) {
         console.error("Error issuing fine:", error);
@@ -61,13 +61,19 @@ const issueFine = async (req, res) => {
     }
 };
 
-// @desc    Get Fine History (Issued Fines List)
+// @desc    Get Fine History (Filter by Officer ID)
 // @route   GET /api/fines/history
 const getFineHistory = async (req, res) => {
     try {
-        // Database එකෙන් ඔක්කොම දඩ ටික ගන්නවා.
-        // .sort({ createdAt: -1 }) එකෙන් කියන්නේ අලුත්ම ඒවා ලිස්ට් එකේ උඩට එන්න ඕන කියන එක.
-        const history = await IssuedFine.find({}).sort({ createdAt: -1 });
+        // 2. URL එකෙන් එවන Officer ID එක ගන්නවා (උදා: ?officerId=badge123)
+        const { officerId } = req.query; 
+
+        // officerId එකක් එව්වා නම් ඒ අයට අදාල ඒවා විතරක් සොයනවා. 
+        // නැත්නම් ({}) ඔක්කොම පෙන්නනවා.
+        const query = officerId ? { policeOfficerId: officerId } : {};
+
+        // අලුත්ම ඒවා උඩට එන විදිහට sort කරනවා
+        const history = await IssuedFine.find(query).sort({ createdAt: -1 });
         
         res.status(200).json(history);
     } catch (error) {
@@ -75,7 +81,6 @@ const getFineHistory = async (req, res) => {
     }
 };
 
-// අන්තිමට function හතරම export කරන්න ඕන
 module.exports = { 
     getOffenses, 
     addOffense, 

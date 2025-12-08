@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart'; // GPS location ganna
 import 'package:geocoding/geocoding.dart';   // Address hoyanna
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Storage Import
+
 import '../../services/fine_service.dart';    // Backend service eka
 
-// import '../../services/fine_service.dart'; 
 class NewFineScreen extends StatefulWidget {
   const NewFineScreen({super.key});
 
@@ -14,8 +15,12 @@ class NewFineScreen extends StatefulWidget {
 class _NewFineScreenState extends State<NewFineScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  // 2. Service Object 
-  final FineService _fineService = FineService(); 
+  // Service Object 
+  final FineService _fineService = FineService();
+  
+  // Storage & Badge Number Variable
+  final _storage = const FlutterSecureStorage();
+  String? _currentBadgeNumber; 
 
   // Text Controllers
   final TextEditingController _licenseController = TextEditingController();
@@ -23,11 +28,9 @@ class _NewFineScreenState extends State<NewFineScreen> {
   final TextEditingController _placeController = TextEditingController();
 
   // Data Variables
-  List<dynamic> _offenseList = []; // Database eken ena list eka
-  bool _isLoading = true;          // Data load wena nisa
-  bool _isGettingLocation = false; // GPS load wena nisa
   List<dynamic> _offenseList = []; 
   bool _isLoading = true;          
+  bool _isGettingLocation = false; 
   
   // Selected Item Details
   String? _selectedOffenseId;      
@@ -36,10 +39,20 @@ class _NewFineScreenState extends State<NewFineScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchOffenseData(); // Screen eka patan gannakotama data load karanna
+    _fetchOffenseData(); 
+    _loadOfficerData(); 
   }
 
-  
+  // Officer ගේ Badge Number එක ගන්න Function එක
+  Future<void> _loadOfficerData() async {
+    String? badge = await _storage.read(key: 'badgeNumber');
+    if (mounted) {
+      setState(() {
+        _currentBadgeNumber = badge;
+      });
+    }
+  }
+
   Future<void> _fetchOffenseData() async {
     try {
       final offenses = await _fineService.getOffenses();
@@ -55,7 +68,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
         setState(() {
           _isLoading = false;
         });
-      
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error loading data. Check internet/server.'), 
@@ -105,9 +117,11 @@ class _NewFineScreenState extends State<NewFineScreen> {
       }
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error getting location: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error getting location: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isGettingLocation = false);
@@ -118,11 +132,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
   void _onOffenseChanged(String? offenseId) {
     if (offenseId == null) return;
 
-
-  void _onOffenseChanged(String? offenseId) {
-    if (offenseId == null) return;
-
-  
     final selectedOffense = _offenseList.firstWhere(
       (item) => item['_id'] == offenseId,
       orElse: () => null,
@@ -131,19 +140,56 @@ class _NewFineScreenState extends State<NewFineScreen> {
     if (selectedOffense != null) {
       setState(() {
         _selectedOffenseId = offenseId;
-        
         _fineAmount = double.tryParse(selectedOffense['amount'].toString()) ?? 0.0;
       });
     }
   }
 
-  // --- ALUTH SUBMIT FUNCTION EKA (STEP 5) ---
+  // SUBMIT FUNCTION EKA
   Future<void> _submitFine() async {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Processing Fine...')),
-      );
       
+      setState(() => _isLoading = true);
+
+      final selectedOffenseObj = _offenseList.firstWhere(
+         (element) => element['_id'] == _selectedOffenseId,
+         orElse: () => {},
+      );
+
+      Map<String, dynamic> fineData = {
+        "licenseNumber": _licenseController.text,
+        "vehicleNumber": _vehicleController.text,
+        "offenseId": _selectedOffenseId,
+        "offenseName": selectedOffenseObj['offenseName'] ?? 'Unknown', 
+        "amount": _fineAmount,
+        "place": _placeController.text,
+        "policeOfficerId": _currentBadgeNumber ?? "Unknown_Officer", 
+      };
+
+      bool success = await _fineService.issueNewFine(fineData);
+
+      if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fine Issued Successfully!'), backgroundColor: Colors.green),
+        );
+        
+        _licenseController.clear();
+        _vehicleController.clear();
+        _placeController.clear();
+        setState(() {
+          _selectedOffenseId = null;
+          _fineAmount = 0.0;
+        });
+
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to issue fine. Try again.'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -155,7 +201,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
         backgroundColor: const Color(0xFF0D47A1),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-     
+      
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator()) 
           : SingleChildScrollView(
@@ -203,7 +249,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
                     ),
                     const SizedBox(height: 15),
 
-                
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Select Offense",
@@ -211,7 +256,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
                         filled: true,
                         fillColor: Colors.grey[100],
                       ),
-                      initialValue: _selectedOffenseId,
+                      value: _selectedOffenseId,
                       items: _offenseList.map<DropdownMenuItem<String>>((dynamic item) {
                         return DropdownMenuItem<String>(
                           value: item['_id'], 
