@@ -1,28 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-
 class FineService {
   // ------------------------------------------------------------------
-  // METHERNA OYATA GALAPENA URL EKA THORAGANNA
-  // (Ngrok one na, me widihata local network eken yanna puluwan)
+  // BASE URL CONFIGURATION
   // ------------------------------------------------------------------
-
-  // OPTION 1: Android Emulator ekata (Computer eke thiyena phone eka)
-  // static const String baseUrl = 'http://10.0.2.2:5000/api/fines';
-
-  // OPTION 2: Aththa Phone ekata (Real Device on same Wi-Fi)
-  // 1. Laptop eke CMD eka open karala 'ipconfig' gahanna.
-  // 2. Ethana thiyena IPv4 Address eka aran methanata danna.
-  // UDAHARANAYAK: 'http://192.168.1.10:5000/api/fines';
-  static const String baseUrl = 'http://192.168.8.114:5000/api/fines'; 
-
-  // OPTION 3: Ngrok (Internet haraha yawanawa nam witharak meka ona)
-  // static const String baseUrl = 'https://pluckiest-untolled-gwenda.ngrok-free.dev/api/fines';
   
+  // ඔයා එවපු අලුත් IP එක මෙතන දාලා තියෙනවා. 
+  // හැමතිස්සෙම 'ipconfig' ගහලා මේක හරියටම චෙක් කරගන්න.
+  static const String baseUrl = 'http://10.159.39.6:5000/api/fines'; 
 
-
-  // Database eken Offense list eka ganna function eka
+  // ------------------------------------------------------------------
+  // 1. Offense List එක ගන්න Function එක (වෙනසක් නෑ)
+  // ------------------------------------------------------------------
   Future<List<dynamic>> getOffenses() async {
     try {
       final response = await http.get(
@@ -31,13 +21,59 @@ class FineService {
       );
 
       if (response.statusCode == 200) {
-        // Server eken ena JSON data tika List ekak widihata return karanawa
         return jsonDecode(response.body); 
       } else {
         throw Exception('Failed to load offenses');
       }
     } catch (e) {
       throw Exception('Error: $e');
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 2. අලුත් Fine එකක් Issue කරන Function එක
+  // ------------------------------------------------------------------
+  // (වෙනසක් නෑ, මොකද අපි UI එක පැත්තෙන් ID එක Map එකට දාලා එවන නිසා)
+  Future<bool> issueNewFine(Map<String, dynamic> fineData) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/issue'), 
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(fineData), 
+      );
+
+      if (response.statusCode == 201) {
+        return true; 
+      } else {
+        print("Server Error: ${response.body}");
+        return false; 
+      }
+    } catch (e) {
+      print("App Connection Error: $e");
+      return false;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 3. Fine History එක ගන්න Function එක (ALUTH UPDATE EKA)
+  // ------------------------------------------------------------------
+  // මෙතනට badgeNumber එක pass කරනවා Parameter එකක් විදිහට
+  Future<List<dynamic>> getFineHistory(String badgeNumber) async {
+    try {
+      // URL එකට Query Parameter එකක් විදිහට officerId එක එකතු කරනවා
+      // උදාහරණ: .../api/fines/history?officerId=12345
+      final response = await http.get(
+        Uri.parse('$baseUrl/history?officerId=$badgeNumber'), 
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body); 
+      } else {
+        throw Exception('Failed to load history');
+      }
+    } catch (e) {
+      throw Exception('Error fetching history: $e');
     }
   }
 }

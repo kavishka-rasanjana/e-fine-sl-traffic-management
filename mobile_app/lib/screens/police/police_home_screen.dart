@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'new_fine.dart'; // 1. මේක අනිවාර්යයෙන්ම තියෙන්න ඕන
+
+// --- 1. අනිවාර්යයෙන්ම මේ ෆයිල් දෙක IMPORT කරන්න ඕන ---
+import 'new_fine.dart';      // දඩ ගහන ෆයිල් එක
+import 'fine_history_screen.dart';  // හිස්ට්‍රි බලන ෆයිල් එක
 
 class PoliceHomeScreen extends StatefulWidget {
   const PoliceHomeScreen({super.key});
@@ -122,6 +125,8 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                     crossAxisSpacing: 15,
                     mainAxisSpacing: 15,
                     children: [
+                      
+                      // --- 2. NEW FINE BUTTON ---
                       _buildMenuCard(
                         title: "New Fine",
                         icon: Icons.note_add_outlined,
@@ -133,6 +138,8 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                            );
                         },
                       ),
+
+                      // CHECK LICENSE BUTTON (Dummy)
                       _buildMenuCard(
                         title: "Check License",
                         icon: Icons.qr_code_scanner,
@@ -141,14 +148,21 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                           // QR scan logic here
                         },
                       ),
+
+                      // --- 3. FINE HISTORY BUTTON (MEKA TAMA HADUWE) ---
                       _buildMenuCard(
                         title: "Fine History",
                         icon: Icons.history,
                         color: Colors.orange,
                         onTap: () {
-                          // History logic here
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const FineHistoryScreen()),
+                          );
                         },
                       ),
+
+                      // PROFILE BUTTON (Dummy)
                       _buildMenuCard(
                         title: "Profile",
                         icon: Icons.person_outline,
@@ -168,7 +182,6 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
     );
   }
 
-  // CORRECTED FUNCTION: Used withValues() instead of withOpacity()
   Widget _buildMenuCard({required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
@@ -179,8 +192,7 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              // Changed here
-              color: Colors.grey.withValues(alpha: 0.1), 
+              color: Colors.grey.withOpacity(0.1), // Updated to withOpacity for compatibility
               spreadRadius: 2,
               blurRadius: 5,
               offset: const Offset(0, 3),
@@ -193,8 +205,7 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                // Changed here
-                color: color.withValues(alpha: 0.1), 
+                color: color.withOpacity(0.1), // Updated to withOpacity
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 35, color: color),
