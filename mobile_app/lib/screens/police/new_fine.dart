@@ -29,9 +29,6 @@ class _NewFineScreenState extends State<NewFineScreen> {
   final TextEditingController _placeController = TextEditingController();
 
   // Data Variables
-  List<dynamic> _offenseList = []; 
-  bool _isLoading = true;          
-  bool _isGettingLocation = false; 
   List<dynamic> _offenseList = []; // Database eken ena list eka
   bool _isLoading = true;          // Data load wena nisa
   bool _isGettingLocation = false; // GPS load wena nisa
@@ -260,7 +257,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
                         filled: true,
                         fillColor: Colors.grey[100],
                       ),
-                      value: _selectedOffenseId,
+                      initialValue: _selectedOffenseId,
                       items: _offenseList.map<DropdownMenuItem<String>>((dynamic item) {
                         return DropdownMenuItem<String>(
                           value: item['_id'], 

@@ -192,7 +192,7 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1), // Updated to withOpacity for compatibility
+              color: Colors.grey.withValues(alpha: 0.1), // Updated to withValues for compatibility
               spreadRadius: 2,
               blurRadius: 5,
               offset: const Offset(0, 3),
@@ -205,7 +205,7 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1), // Updated to withOpacity
+                color: color.withValues(alpha: 0.1), // Updated to withValues
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 35, color: color),

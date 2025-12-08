@@ -8,7 +8,7 @@ class FineService {
   
   // ඔයා එවපු අලුත් IP එක මෙතන දාලා තියෙනවා. 
   // හැමතිස්සෙම 'ipconfig' ගහලා මේක හරියටම චෙක් කරගන්න.
-  static const String baseUrl = 'http://10.159.39.6:5000/api/fines'; 
+  static const String baseUrl = 'http://192.168.8.114:5000/api/fines'; 
 
   // ------------------------------------------------------------------
   // 1. Offense List එක ගන්න Function එක (වෙනසක් නෑ)
@@ -45,11 +45,11 @@ class FineService {
       if (response.statusCode == 201) {
         return true; 
       } else {
-        print("Server Error: ${response.body}");
+        // TODO: Handle server error appropriately (e.g., log or show a message)
         return false; 
       }
     } catch (e) {
-      print("App Connection Error: $e");
+      // TODO: Handle connection error appropriately (e.g., log or show a message)
       return false;
     }
   }

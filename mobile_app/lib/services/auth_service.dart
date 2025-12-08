@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class AuthService {
   //localhost doesnt works in android emulator
   //then use '10.0.2.2' 
-  //when using actual phone then add 192.168.1.5
-  static const String baseUrl = 'http://10.159.39.6:5000/api/auth';
+  //when using actual phone then add 192.168.8.114
+  static const String baseUrl = 'http://192.168.8.114:5000/api/auth';
   // static const String baseUrl = 'https://pluckiest-untolled-gwenda.ngrok-free.dev';
   final _storage = const FlutterSecureStorage();
 
@@ -70,9 +70,9 @@ class AuthService {
     
   
     //emulator -> 10.0.2.2 
-    //real device -> 192.168.1.5
+    //real device -> 192.168.8.114
     final response = await http.get(
-      Uri.parse('http://10.159.39.6:5000/api/stations'), 
+      Uri.parse('http://192.168.8.114:5000/api/stations'), 
       // Uri.parse('https://pluckiest-untolled-gwenda.ngrok-free.dev'), 
       headers: {'Content-Type': 'application/json'},
     );

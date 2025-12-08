@@ -44,7 +44,7 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         // Error handling
-        print("Error: $e");
+        // TODO: Handle error appropriately (e.g., show a SnackBar)
       }
     }
   }
