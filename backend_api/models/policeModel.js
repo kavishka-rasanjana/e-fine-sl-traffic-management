@@ -1,19 +1,48 @@
 const mongoose = require('mongoose');
 
-const policeSchema = mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    badgeNumber: { type: String, required: true, unique: true },
-    email: { type: String, required: true, unique: true },
-   
-    nic: { type: String, required: true }, // NIC 
-    phone: { type: String, required: true }, // Phone Number 
-    // ------------------
-    password: { type: String, required: true },
-    station: { type: String, required: true },
-    role: { type: String, enum: ['officer', 'admin'], default: 'officer' },
-  },
-  { timestamps: true }
-);
+const policeSchema = mongoose.Schema({
+    // --- පරණ විස්තර ---
+    name: { 
+        type: String, 
+        required: true 
+    },
+    email: { 
+        type: String, 
+        required: true, 
+        unique: true 
+    },
+    badgeNumber: { 
+        type: String, 
+        required: true, 
+        unique: true 
+    },
+    password: { 
+        type: String, 
+        required: true 
+    },
 
-module.exports = mongoose.model('Police', policeSchema);
+
+    policeStation: { 
+        type: String, 
+        required: true 
+    },
+    position: { 
+        type: String, 
+        required: true //  OIC, Sergeant, Constable
+    },
+    profileImage: { 
+        type: String, 
+        default: 'https://cdn-icons-png.flaticon.com/512/206/206853.png' // Default පින්තූරයක්
+    },
+
+    // --- Role 
+    role: { 
+        type: String, 
+        default: 'officer' 
+    },
+}, {
+    timestamps: true
+   });  // CreatedAt, UpdatedAt 
+
+
+module.exports = mongoose.model('User', policeSchema);

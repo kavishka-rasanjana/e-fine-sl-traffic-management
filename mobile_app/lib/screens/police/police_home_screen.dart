@@ -1,9 +1,11 @@
+import 'dart:convert'; // Base64 decode
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-// --- 1. අනිවාර්යයෙන්ම මේ ෆයිල් දෙක IMPORT කරන්න ඕන ---
-import 'new_fine.dart';      // දඩ ගහන ෆයිල් එක
-import 'fine_history_screen.dart';  // හිස්ට්‍රි බලන ෆයිල් එක
+import 'new_fine.dart';
+import 'fine_history_screen.dart';
+import 'profile_screen.dart';
 
 class PoliceHomeScreen extends StatefulWidget {
   const PoliceHomeScreen({super.key});
@@ -17,6 +19,8 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
 
   String officerName = "Loading..."; 
   String badgeNumber = ""; 
+  String officerRank = ""; 
+  String? profileImageString; 
 
   @override
   void initState() {
@@ -27,13 +31,34 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
   Future<void> _loadUserData() async {
     String? storedName = await _storage.read(key: 'name');
     String? storedBadge = await _storage.read(key: 'badgeNumber');
-
+    String? storedRank = await _storage.read(key: 'position');
+    String? serverImg = await _storage.read(key: 'serverProfileImage');
+    
     if (mounted) { 
       setState(() {
         officerName = storedName ?? "Officer"; 
         badgeNumber = storedBadge ?? "";       
+        officerRank = storedRank ?? "Officer";
+        profileImageString = serverImg;
       });
     }
+  }
+
+  // --- Photo Display Logic ---
+  ImageProvider _getProfileImage() {
+    if (profileImageString != null && profileImageString!.isNotEmpty) {
+      if (profileImageString!.startsWith('data:image')) {
+        try {
+          final base64Data = profileImageString!.split(',').last;
+          return MemoryImage(base64Decode(base64Data)); 
+        } catch (e) {
+          return const NetworkImage('https://cdn-icons-png.flaticon.com/512/206/206853.png');
+        }
+      } else if (profileImageString!.startsWith('http')) {
+        return NetworkImage(profileImageString!);
+      }
+    }
+    return const NetworkImage('https://cdn-icons-png.flaticon.com/512/206/206853.png');
   }
 
   @override
@@ -75,28 +100,37 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 30,
-                        backgroundImage: NetworkImage('https://cdn-icons-png.flaticon.com/512/206/206853.png'), 
-                        backgroundColor: Colors.white,
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.white,
+                          backgroundImage: _getProfileImage(), 
+                        ),
                       ),
                       const SizedBox(width: 15),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Welcome Back,",
-                            style: TextStyle(color: Colors.blue[100], fontSize: 14),
-                          ),
-                          Text(
-                            officerName, 
-                            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            "Badge ID: $badgeNumber", 
-                            style: const TextStyle(color: Colors.white70, fontSize: 14),
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Welcome Back,",
+                              style: TextStyle(color: Colors.blue[100], fontSize: 14),
+                            ),
+                            Text(
+                              officerName, 
+                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              "$officerRank | $badgeNumber", 
+                              style: const TextStyle(color: Colors.white70, fontSize: 13),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -112,10 +146,7 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Quick Actions",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
+                  const Text("Quick Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 15),
                   
                   GridView.count(
@@ -125,50 +156,18 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                     crossAxisSpacing: 15,
                     mainAxisSpacing: 15,
                     children: [
+                      _buildMenuCard(title: "New Fine", icon: Icons.note_add_outlined, color: Colors.redAccent, onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const NewFineScreen())); }),
+                      _buildMenuCard(title: "Check License", icon: Icons.qr_code_scanner, color: Colors.blue, onTap: () {}),
+                      _buildMenuCard(title: "Fine History", icon: Icons.history, color: Colors.orange, onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const FineHistoryScreen())); }),
                       
-                      // --- 2. NEW FINE BUTTON ---
-                      _buildMenuCard(
-                        title: "New Fine",
-                        icon: Icons.note_add_outlined,
-                        color: Colors.redAccent,
-                        onTap: () {
-                           Navigator.push(
-                             context,
-                             MaterialPageRoute(builder: (context) => const NewFineScreen()),
-                           );
-                        },
-                      ),
-
-                      // CHECK LICENSE BUTTON (Dummy)
-                      _buildMenuCard(
-                        title: "Check License",
-                        icon: Icons.qr_code_scanner,
-                        color: Colors.blue,
-                        onTap: () {
-                          // QR scan logic here
-                        },
-                      ),
-
-                      // --- 3. FINE HISTORY BUTTON (MEKA TAMA HADUWE) ---
-                      _buildMenuCard(
-                        title: "Fine History",
-                        icon: Icons.history,
-                        color: Colors.orange,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const FineHistoryScreen()),
-                          );
-                        },
-                      ),
-
-                      // PROFILE BUTTON (Dummy)
+                      // --- PROFILE BUTTON (WITH REFRESH) ---
                       _buildMenuCard(
                         title: "Profile",
                         icon: Icons.person_outline,
                         color: Colors.green,
                         onTap: () {
-                          // Profile logic here
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()))
+                              .then((_) => _loadUserData()); // Refresh data on return
                         },
                       ),
                     ],
@@ -181,7 +180,8 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
       ),
     );
   }
-Widget _buildMenuCard({required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
+
+  Widget _buildMenuCard({required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -190,12 +190,7 @@ Widget _buildMenuCard({required String title, required IconData icon, required C
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.1), // FIXED
-              spreadRadius: 2,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
+            BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 2, blurRadius: 5, offset: const Offset(0, 3)),
           ],
         ),
         child: Column(
@@ -203,21 +198,14 @@ Widget _buildMenuCard({required String title, required IconData icon, required C
           children: [
             Container(
               padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1), // FIXED
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(icon, size: 35, color: color),
             ),
             const SizedBox(height: 15),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
-            ),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
           ],
         ),
       ),
     );
   }
-  }
-  
+}

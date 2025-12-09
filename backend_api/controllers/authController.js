@@ -13,19 +13,24 @@ const requestVerification = async (req, res) => {
   const { badgeNumber, stationCode } = req.body;
 
   try {
-   
+    const existingOfficer = await Police.findOne({ badgeNumber });
+    
+    if (existingOfficer) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'This Badge Number is already registered. Please Login.' 
+      });
+    }
+
     const station = await Station.findOne({ stationCode });
 
     if (!station) {
       return res.status(404).json({ message: 'Police Station not found' });
     }
-
-    
+   
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     
     await Verification.deleteMany({ badgeNumber });
-
     
     await Verification.create({
       badgeNumber,
@@ -33,18 +38,14 @@ const requestVerification = async (req, res) => {
       otp, 
     });
 
-    
-const htmlMessage = `
+    const htmlMessage = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-        
         <div style="background-color: #003366; padding: 20px; text-align: center;">
           <h2 style="color: #ffffff; margin: 0;">E-Fine SL Verification</h2>
         </div>
-
         <div style="padding: 20px; background-color: #ffffff;">
           <p style="font-size: 16px; color: #333;">Dear OIC,</p>
           <p style="font-size: 16px; color: #333;">The following officer has requested official registration access:</p>
-          
           <table style="width: 100%; margin-bottom: 20px; background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
             <tr>
               <td style="font-weight: bold; color: #555; padding: 5px;">Badge ID:</td>
@@ -55,25 +56,21 @@ const htmlMessage = `
               <td style="font-weight: bold; color: #000; padding: 5px;">${station.name}</td>
             </tr>
           </table>
-
           <div style="text-align: center; margin: 30px 0;">
             <p style="margin: 0; font-size: 14px; color: #777;">VERIFICATION CODE (OTP)</p>
             <h1 style="margin: 10px 0; font-size: 40px; color: #003366; letter-spacing: 5px; font-weight: bold;">
               ${otp}
             </h1>
           </div>
-
           <p style="color: #d9534f; font-size: 14px; text-align: center; font-weight: bold;">
             ⚠️ Please verify the officer's identity before providing this code.
           </p>
         </div>
-
         <div style="background-color: #eeeeee; padding: 10px; text-align: center; font-size: 12px; color: #777;">
           © 2025 E-Fine SL Project | Secure Verification System
         </div>
       </div>
     `;
-
 
     await sendEmail({
       email: station.officialEmail,
@@ -90,18 +87,18 @@ const htmlMessage = `
   }
 };
 
+// @desc    Verify OTP
+// @route   POST /api/auth/verify-otp
 const verifyOTP = async (req, res) => {
   const { badgeNumber, otp } = req.body;
 
   try {
-    
     const record = await Verification.findOne({ badgeNumber, otp });
 
     if (!record) {
       return res.status(400).json({ success: false, message: 'Invalid or Expired OTP' });
     }
 
-    
     res.status(200).json({ success: true, message: 'OTP Verified Successfully' });
 
   } catch (error) {
@@ -112,8 +109,8 @@ const verifyOTP = async (req, res) => {
 // @desc    Register New Police Officer
 // @route   POST /api/auth/register-police
 const registerPolice = async (req, res) => {
-  
-  const { name, badgeNumber, email, password, station, otp, nic, phone } = req.body;
+  // NEW: Accepting position (Rank) & profileImage
+  const { name, badgeNumber, email, password, station, otp, nic, phone, position, profileImage } = req.body;
 
   try {
     const verifiedRecord = await Verification.findOne({ badgeNumber, otp });
@@ -129,7 +126,6 @@ const registerPolice = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-   
     const officer = await Police.create({
       name,
       badgeNumber,
@@ -138,6 +134,11 @@ const registerPolice = async (req, res) => {
       phone,  
       password: hashedPassword,
       station,
+      
+      // --- NEW DATA FIELDS ---
+      policeStation: station, 
+      position: position,     
+      profileImage: profileImage 
     });
 
     await Verification.deleteMany({ badgeNumber });
@@ -155,7 +156,6 @@ const registerPolice = async (req, res) => {
     }
 
   } catch (error) {
-    // 3. Terminal එකේ Error එක හරියට බලාගන්න මේ console.log එක දාන්න
     console.error("Register Error:", error.message); 
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
@@ -167,17 +167,25 @@ const registerDriver = async (req, res) => {
   const { name, nic, licenseNumber, email, phone, password } = req.body;
 
   try {
-    // Check if driver exists
-    const driverExists = await Driver.findOne({ email });
-    if (driverExists) {
-      return res.status(400).json({ message: 'Driver already registered' });
+    const existingDriver = await Driver.findOne({
+      $or: [
+        { email: email },
+        { nic: nic },
+        { licenseNumber: licenseNumber }
+      ]
+    });
+
+    if (existingDriver) {
+      let message = 'Driver already registered';
+      if (existingDriver.email === email) message = 'This Email is already registered.';
+      else if (existingDriver.nic === nic) message = 'This NIC is already registered.';
+      else if (existingDriver.licenseNumber === licenseNumber) message = 'This License Number is already registered.';
+      return res.status(400).json({ message });
     }
 
-    // Encrypt password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create Driver
     const driver = await Driver.create({
       name,
       nic,
@@ -199,7 +207,9 @@ const registerDriver = async (req, res) => {
     } else {
       res.status(400).json({ message: 'Invalid driver data' });
     }
+
   } catch (error) {
+    console.error("Driver Register Error:", error.message);
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
@@ -213,14 +223,11 @@ const loginUser = async (req, res) => {
     let user = null;
     let role = '';
 
-
     const officer = await Police.findOne({ email });
-    
     if (officer) {
       user = officer;
-      role = officer.role; // 'officer' or 'admin'
+      role = officer.role; 
     } else {
-     
       const driver = await Driver.findOne({ email });
       if (driver) {
         user = driver;
@@ -228,7 +235,6 @@ const loginUser = async (req, res) => {
       }
     }
 
-   
     if (user && (await bcrypt.compare(password, user.password))) {
       res.json({
         success: true,
@@ -236,8 +242,16 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: role, 
-        badgeNumber: user.badgeNumber,
+        badgeNumber: user.badgeNumber, 
         token: generateToken(user.id),
+
+        isVerified: role === 'driver' ? user.isVerified : true, 
+        licenseNumber: role === 'driver' ? user.licenseNumber : null,
+
+        // --- NEW PROFILE DATA ---
+        policeStation: role !== 'driver' ? user.policeStation : null,
+        position: role !== 'driver' ? user.position : null,
+        profileImage: role !== 'driver' ? user.profileImage : null,
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
@@ -247,133 +261,122 @@ const loginUser = async (req, res) => {
   }
 };
 
-// @desc    Forgot Password - Send OTP
-// @route   POST /api/auth/forgot-password
-const forgotPassword = async (req, res) => {
-  const { email } = req.body;
+// @desc    Update Profile Picture (NEW)
+// @route   PUT /api/auth/update-image
+// @access  Private
+const updateProfileImage = async (req, res) => {
+  const { id, profileImage } = req.body;
 
   try {
-    let user = null;
-    let role = '';
-
-    // 1. Check if user exists in Police collection
-    const officer = await Police.findOne({ email });
-    if (officer) {
-      user = officer;
-      role = 'police';
-    } else {
-      // 2. Check if user exists in Driver collection
-      const driver = await Driver.findOne({ email });
-      if (driver) {
-        user = driver;
-        role = 'driver';
-      }
+    let user = await Police.findById(id);
+    if (!user) {
+      user = await Driver.findById(id);
     }
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found with this email' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    // 3. Generate OTP
+    user.profileImage = profileImage;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Profile image updated successfully' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// ... (Other Forgot Password & Reset functions remain same) ...
+
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    let user = await Police.findOne({ email });
+    if (!user) user = await Driver.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: 'User not found with this email' });
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await Verification.deleteMany({ badgeNumber: email }); 
+    await Verification.create({ badgeNumber: email, stationCode: 'RESET', otp });
 
-    // 4. Save OTP to Verification collection (Reuse existing model)
-    // We use email as the identifier here instead of badgeNumber
-    await Verification.deleteMany({ badgeNumber: email }); // Clear old OTPs
-    await Verification.create({
-      badgeNumber: email, // Using email field as identifier
-      stationCode: 'RESET', // Dummy value for password reset
-      otp,
-    });
+    const message = `You requested a password reset. OTP: ${otp}`;
+    await sendEmail({ email: user.email, subject: 'Password Reset Code', message });
 
-    // 5. Send Email
-    const message = `
-      You requested a password reset.
-      Your OTP Code is: ${otp}
-      
-      If you did not request this, please ignore this email.
-    `;
-
-    await sendEmail({
-      email: user.email,
-      subject: 'Password Reset Code - E-Fine SL',
-      message,
-    });
-
-    res.status(200).json({ success: true, message: 'OTP sent to email', role });
-
+    res.status(200).json({ success: true, message: 'OTP sent to email' });
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
-// @desc    Verify Reset OTP
-// @route   POST /api/auth/verify-reset-otp
 const verifyResetOTP = async (req, res) => {
   const { email, otp } = req.body;
-
   try {
     const record = await Verification.findOne({ badgeNumber: email, otp });
-
-    if (!record) {
-      return res.status(400).json({ success: false, message: 'Invalid or Expired OTP' });
-    }
-
+    if (!record) return res.status(400).json({ success: false, message: 'Invalid OTP' });
     res.status(200).json({ success: true, message: 'OTP Verified' });
-
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
-// @desc    Reset Password
-// @route   POST /api/auth/reset-password
 const resetPassword = async (req, res) => {
   const { email, newPassword, otp } = req.body;
-
   try {
-    // Double check OTP
     const record = await Verification.findOne({ badgeNumber: email, otp });
-    if (!record) {
-      return res.status(400).json({ message: 'Invalid request. Please verify OTP first.' });
-    }
+    if (!record) return res.status(400).json({ message: 'Invalid OTP' });
 
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    // Update Password based on User Type
-    let updated = false;
-    
-    // Try update Police
-    const officer = await Police.findOneAndUpdate(
-      { email },
-      { password: hashedPassword }
-    );
-    if (officer) updated = true;
-
-    // Try update Driver if not Police
-    if (!updated) {
-      const driver = await Driver.findOneAndUpdate(
-        { email },
-        { password: hashedPassword }
-      );
-      if (driver) updated = true;
-    }
+    let updated = await Police.findOneAndUpdate({ email }, { password: hashedPassword });
+    if (!updated) updated = await Driver.findOneAndUpdate({ email }, { password: hashedPassword });
 
     if (updated) {
-      // Clear OTP
       await Verification.deleteMany({ badgeNumber: email });
-      res.status(200).json({ success: true, message: 'Password Reset Successful. Please Login.' });
+      res.status(200).json({ success: true, message: 'Password Reset Successful' });
     } else {
-      res.status(404).json({ message: 'User not found to update' });
+      res.status(404).json({ message: 'User not found' });
     }
-
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
+const getMe = async (req, res) => {
+  res.status(200).json(req.user);
+};
 
-module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver,forgotPassword, verifyResetOTP, resetPassword, loginUser};
+const verifyDriver = async (req, res) => {
+  try {
+    const { licenseIssueDate, licenseExpiryDate, vehicleClasses } = req.body;
+    const driver = await Driver.findById(req.user.id);
+    if (!driver) return res.status(404).json({ message: 'Driver not found' });
 
+    driver.isVerified = true;
+    driver.licenseIssueDate = licenseIssueDate;
+    driver.licenseExpiryDate = licenseExpiryDate;
+    driver.vehicleClasses = vehicleClasses; 
+    await driver.save();
+
+    res.status(200).json({ success: true, message: 'Verified', driver });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+module.exports = { 
+  requestVerification, 
+  verifyOTP, 
+  registerPolice, 
+  registerDriver,
+  forgotPassword, 
+  verifyResetOTP, 
+  resetPassword, 
+  loginUser, 
+  getMe, 
+  verifyDriver,
+  updateProfileImage // Added new function
+};
