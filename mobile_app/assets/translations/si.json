@@ -35,7 +35,11 @@
   "expiry_date": "කල් ඉකුත් වන දිනය",
   "allowed_vehicles": "අවසර ලත් වාහන",
 
-  "no_classes": "වාහන පන්ති හමු නොවීය"
+  "no_classes": "වාහන පන්ති හමු නොවීය",
+  "active_license": "සක්‍රිය බලපත්‍රයකි",
+  "suspended_license": "බලපත්‍රය අත්හිටුවා ඇත",
+  "residential_address": "පදිංචි ලිපිනය",
+  "postal": "තැපැල්"
 
 
 }

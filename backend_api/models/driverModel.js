@@ -20,6 +20,11 @@ const driverSchema = mongoose.Schema(
     licenseIssueDate: { type: String }, // 4a
     dateOfBirth: { type: String }, // 3
     
+    address: { type: String },
+    city: { type: String },
+    postalCode: { type: String },
+    
+
     vehicleClasses: [{
         category: String, // A, B, B1
         issueDate: String,

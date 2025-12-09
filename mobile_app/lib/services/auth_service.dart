@@ -208,6 +208,9 @@ class AuthService {
     required String issueDate,
     required String expiryDate,
     required List<Map<String, String>> vehicleClasses,
+    required String address,
+    required String city,
+    required String postalCode,
   }) async {
     String? token = await _storage.read(key: 'token');
 
@@ -221,6 +224,9 @@ class AuthService {
         'licenseIssueDate': issueDate,
         'licenseExpiryDate': expiryDate,
         'vehicleClasses': vehicleClasses,
+        'address': address,
+        'city': city,
+        'postalCode': postalCode,
       }),
     );
 

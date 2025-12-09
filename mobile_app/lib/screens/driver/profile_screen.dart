@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:qr_flutter/qr_flutter.dart'; 
+import 'dart:convert'; // JSON encode කරන්න
 
 class ProfileScreen extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -8,11 +10,15 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     bool isVerified = userData['isVerified'] ?? false;
     List<dynamic> vehicleClasses = userData['vehicleClasses'] ?? [];
     String issueDate = userData['licenseIssueDate'] ?? "N/A";
     String expiryDate = userData['licenseExpiryDate'] ?? "N/A";
+    
+    // --- STATUS CHECK ---
+    // Backend එකෙන් 'Active' හෝ 'Suspended' කියලා එන්න ඕනේ
+    String status = userData['licenseStatus'] ?? "Active"; 
+    bool isActive = status == "Active";
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -21,11 +27,20 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          // --- QR CODE BUTTON (අලුත් කොටස) ---
+          IconButton(
+            icon: const Icon(Icons.qr_code_2, size: 30),
+            onPressed: () {
+              _showMyQRCode(context);
+            },
+          )
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 1. PROFILE HEADER (Photo & Name)
+            // 1. PROFILE HEADER
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(bottom: 30),
@@ -53,7 +68,6 @@ class ProfileScreen extends StatelessWidget {
                           backgroundColor: Colors.white,
                         ),
                       ),
-                      // Verified Icon
                       if (isVerified)
                         const CircleAvatar(
                           radius: 15,
@@ -73,17 +87,18 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   
-                  // Verified Badge
+                  // Status Badge (Active/Suspended)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                     decoration: BoxDecoration(
-                      color: isVerified ? Colors.white : Colors.redAccent,
+                      // Active නම් සුදු, Suspended නම් රතු
+                      color: isActive ? Colors.white : Colors.red,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      isVerified ? "verified_driver".tr() : "not_verified".tr(),
+                      isActive ? "active_license".tr(): "suspended_license".tr(),
                       style: TextStyle(
-                        color: isVerified ? Colors.green[800] : Colors.white,
+                        color: isActive ? Colors.green[800] : Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 12
                       ),
@@ -117,7 +132,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
 
-            // 3. LICENSE DETAILS CARD 
+            // 3. LICENSE DETAILS CARD
             if (isVerified) ...[
               _buildSectionTitle("digital_license_info".tr()),
               Container(
@@ -127,7 +142,6 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // License Number
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -142,12 +156,17 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const Icon(Icons.drive_eta, color: Colors.green, size: 30),
+                        // Status Icon
+                        Icon(
+                          isActive ? Icons.check_circle : Icons.block, 
+                          color: isActive ? Colors.green : Colors.red, 
+                          size: 30
+                        ),
                       ],
                     ),
                     const Divider(height: 30),
 
-                    // Dates Row
+                    // Dates
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -157,21 +176,32 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const Divider(height: 30),
 
-                    // Vehicle Classes
-                    Text("allowed_vehicles".tr(), style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    // Classes
+                    Text("allowed_vehicles".tr(), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     const SizedBox(height: 10),
                     
                     vehicleClasses.isEmpty 
-                      ? Text("no_classes".tr(), style: TextStyle(color: Colors.red))
+                      ? Text("no_classes".tr(), style: const TextStyle(color: Colors.red))
                       : Wrap(
                           spacing: 10,
                           runSpacing: 10,
                           children: vehicleClasses.map((item) {
-                            // Backend returns a Map (category, issueDate, expiryDate)
                             String cat = item is Map ? item['category'] : item.toString();
                             return _buildClassChip(cat);
                           }).toList(),
                         ),
+                        // Address Section
+                    const Divider(height: 30),
+                    Text("residential_address".tr(), style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    const SizedBox(height: 5),
+                    Text(
+                      "${userData['address'] ?? ''}, ${userData['city'] ?? ''}",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "${"postal".tr()}: ${userData['postalCode'] ?? ''}",
+                      style: const TextStyle(color: Colors.black54),
+                    ),
                   ],
                 ),
               ),
@@ -184,8 +214,59 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // --- UI HELPERS ---
+  // --- QR CODE DISPLAY FUNCTION ---
+  void _showMyQRCode(BuildContext context) {
+    // QR එකට දාන්න ඕනේ ඩේටා ටික JSON එකක් විදිහට හදනවා
+    // NIC සහ License දෙකම දානවා. License නැත්නම් හිස්ව යවනවා.
+    Map<String, String> qrData = {
+      "nic": userData['nic'],
+      "license": userData['licenseNumber'] ?? "N/A",
+      "type": "driver_identity" // මෙය Driver කෙනෙක් බව හඳුනාගන්න
+    };
 
+    String qrString = jsonEncode(qrData);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        contentPadding: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "My Digital Identity",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 200,
+              width: 200,
+              child: QrImageView(
+                data: qrString,
+                version: QrVersions.auto,
+                size: 200.0,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Show this to the Traffic Police Officer to fetch your details.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close"),
+          )
+        ],
+      ),
+    );
+  }
+
+  // --- UI HELPERS ---
   BoxDecoration _boxDecoration() {
     return BoxDecoration(
       color: Colors.white,

@@ -269,6 +269,7 @@ const loginUser = async (req, res) => {
 
         isVerified: user.role === 'driver' ? user.isVerified : true, 
         licenseNumber: user.role === 'driver' ? user.licenseNumber : null,
+        nic: user.nic
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
@@ -418,7 +419,7 @@ const getMe = async (req, res) => {
 const verifyDriver = async (req, res) => {
   try {
   //  console.log("RECEIVED DATA:", req.body);
-    const { licenseIssueDate, licenseExpiryDate, vehicleClasses } = req.body;
+    const { licenseIssueDate, licenseExpiryDate, vehicleClasses, address, city, postalCode } = req.body;
 
    
     const driver = await Driver.findById(req.user.id);
@@ -432,6 +433,10 @@ const verifyDriver = async (req, res) => {
     driver.licenseIssueDate = licenseIssueDate;
     driver.licenseExpiryDate = licenseExpiryDate;
     driver.vehicleClasses = vehicleClasses; 
+
+    driver.address = address;
+    driver.city = city;
+    driver.postalCode = postalCode;
 
     await driver.save();
 

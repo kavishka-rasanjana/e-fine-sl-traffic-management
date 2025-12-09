@@ -35,6 +35,10 @@
   "expiry_date": "Expiry Date",
   "allowed_vehicles": "Allowed Vehicles",
 
-  "no_classes": "No classes found"
+  "no_classes": "No classes found",
+  "active_license": "Active License",
+  "suspended_license": "LICENSE SUSPENDED",
+  "residential_address": "Residential Address",
+  "postal": "Postal"
 
 }

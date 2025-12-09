@@ -60,6 +60,7 @@ Future<void> _handleLogin() async {
         // If the user is a driver, check if they are verified
         bool isVerified = userData['isVerified'] ?? false;
         String licenseNum = userData['licenseNumber'] ?? "";
+        String registeredNIC = userData['nic'] ?? "";
 
         if (isVerified) {
           // if Verified -> Home Screen
@@ -74,6 +75,7 @@ Future<void> _handleLogin() async {
             MaterialPageRoute(
               builder: (context) => LicenseVerificationScreen(
                 registeredLicenseNumber: licenseNum,
+                registeredNIC: registeredNIC,
               ),
             ),
           );
