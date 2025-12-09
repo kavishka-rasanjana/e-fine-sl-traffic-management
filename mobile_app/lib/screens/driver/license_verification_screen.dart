@@ -381,3 +381,4 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     return Expanded(child: Container(height: 2, color: _currentStep > index ? Colors.green : Colors.grey[300]));
   }
 }
+
