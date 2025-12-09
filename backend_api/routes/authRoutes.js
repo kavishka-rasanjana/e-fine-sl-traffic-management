@@ -9,6 +9,12 @@ const { requestVerification,
   verifyResetOTP,
   resetPassword
 } = require('../controllers/authController');
+const { protect } = require('../middleware/authMiddleware');
+const { 
+  getMe 
+} = require('../controllers/authController');
+
+const { verifyDriver } = require('../controllers/authController');
 
 router.post('/request-verification', requestVerification);
 router.post('/verify-otp', verifyOTP);      
@@ -19,5 +25,8 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-otp', verifyResetOTP);
 router.post('/reset-password', resetPassword);
 
+router.get('/me', protect, getMe);
+router.put('/verify-driver',protect, verifyDriver);
 
 module.exports = router;
+

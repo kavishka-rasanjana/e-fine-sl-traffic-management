@@ -13,19 +13,26 @@ const requestVerification = async (req, res) => {
   const { badgeNumber, stationCode } = req.body;
 
   try {
-   
+    //check whether batch number is already exist
+    const existingOfficer = await Police.findOne({ badgeNumber });
+    
+    if (existingOfficer) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'This Badge Number is already registered. Please Login.' 
+      });
+    }
+    // -------------------------------------------------------------
+
     const station = await Station.findOne({ stationCode });
 
     if (!station) {
       return res.status(404).json({ message: 'Police Station not found' });
     }
-
-    
+   
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     
     await Verification.deleteMany({ badgeNumber });
-
     
     await Verification.create({
       badgeNumber,
@@ -155,7 +162,7 @@ const registerPolice = async (req, res) => {
     }
 
   } catch (error) {
-    // 3. Terminal එකේ Error එක හරියට බලාගන්න මේ console.log එක දාන්න
+    
     console.error("Register Error:", error.message); 
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
@@ -167,17 +174,36 @@ const registerDriver = async (req, res) => {
   const { name, nic, licenseNumber, email, phone, password } = req.body;
 
   try {
-    // Check if driver exists
-    const driverExists = await Driver.findOne({ email });
-    if (driverExists) {
-      return res.status(400).json({ message: 'Driver already registered' });
-    }
+    // --- Validation Part
+  
+    const existingDriver = await Driver.findOne({
+      $or: [
+        { email: email },
+        { nic: nic },
+        { licenseNumber: licenseNumber }
+      ]
+    });
 
-    // Encrypt password
+    if (existingDriver) {
+      let message = 'Driver already registered';
+      
+      if (existingDriver.email === email) {
+        message = 'This Email is already registered.';
+      } else if (existingDriver.nic === nic) {
+        message = 'This NIC is already registered.';
+      } else if (existingDriver.licenseNumber === licenseNumber) {
+        message = 'This License Number is already registered.';
+      }
+
+      return res.status(400).json({ message });
+    }
+    // -------------------------------------
+
+    // 3. Password Encrypt 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create Driver
+    // 4. create Driver and save in  Database 
     const driver = await Driver.create({
       name,
       nic,
@@ -199,7 +225,9 @@ const registerDriver = async (req, res) => {
     } else {
       res.status(400).json({ message: 'Invalid driver data' });
     }
+
   } catch (error) {
+    console.error("Driver Register Error:", error.message);
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
@@ -238,6 +266,9 @@ const loginUser = async (req, res) => {
         role: role, 
         badgeNumber: user.badgeNumber,
         token: generateToken(user.id),
+
+        isVerified: user.role === 'driver' ? user.isVerified : true, 
+        licenseNumber: user.role === 'driver' ? user.licenseNumber : null,
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
@@ -374,6 +405,49 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// @desc    Get Current User Profile
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+  res.status(200).json(req.user);
+};
 
-module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver,forgotPassword, verifyResetOTP, resetPassword, loginUser};
+// @desc    Verify Driver & Update License Details
+// @route   PUT /api/auth/verify-driver
+// @access  Private (Driver Only)
+const verifyDriver = async (req, res) => {
+  try {
+  //  console.log("RECEIVED DATA:", req.body);
+    const { licenseIssueDate, licenseExpiryDate, vehicleClasses } = req.body;
+
+   
+    const driver = await Driver.findById(req.user.id);
+
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    
+    driver.isVerified = true;
+    driver.licenseIssueDate = licenseIssueDate;
+    driver.licenseExpiryDate = licenseExpiryDate;
+    driver.vehicleClasses = vehicleClasses; 
+
+    await driver.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'License verified and profile updated',
+      driver 
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+
+
+module.exports = { requestVerification, verifyOTP, registerPolice, registerDriver,forgotPassword, verifyResetOTP, resetPassword, loginUser, getMe, verifyDriver};
 

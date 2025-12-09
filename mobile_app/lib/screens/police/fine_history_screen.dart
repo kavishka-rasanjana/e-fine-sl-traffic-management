@@ -37,6 +37,8 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         debugPrint("Error: $e"); // foundation නැතුවට මේක වැඩ කරනවා material එක නිසා
+        // Error handling
+        // TODO: Handle error appropriately (e.g., show a SnackBar)
       }
     }
   }

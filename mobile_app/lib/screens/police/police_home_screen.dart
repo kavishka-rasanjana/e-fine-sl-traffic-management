@@ -191,7 +191,7 @@ Widget _buildMenuCard({required String title, required IconData icon, required C
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.1), // FIXED
+              color: Colors.grey.withValues(alpha: 0.1), // Updated to withValues for compatibility
               spreadRadius: 2,
               blurRadius: 5,
               offset: const Offset(0, 3),
@@ -204,7 +204,7 @@ Widget _buildMenuCard({required String title, required IconData icon, required C
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1), // FIXED
+                color: color.withValues(alpha: 0.1), // Updated to withValues
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 35, color: color),

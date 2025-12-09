@@ -4,6 +4,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../services/fine_service.dart';
 
+// import '../../services/fine_service.dart'; 
 class NewFineScreen extends StatefulWidget {
   const NewFineScreen({super.key});
 
@@ -24,9 +25,9 @@ class _NewFineScreenState extends State<NewFineScreen> {
   final TextEditingController _placeController = TextEditingController();
 
   // Data Variables
-  List<dynamic> _offenseList = []; 
-  bool _isLoading = true;          
-  bool _isGettingLocation = false; 
+  List<dynamic> _offenseList = []; // Database eken ena list eka
+  bool _isLoading = true;          // Data load wena nisa
+  bool _isGettingLocation = false; // GPS load wena nisa
   
   String? _selectedOffenseId;      
   double _fineAmount = 0.0;        
@@ -47,6 +48,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
     }
   }
 
+  
   Future<void> _fetchOffenseData() async {
     try {
       final offenses = await _fineService.getOffenses();
@@ -211,7 +213,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
                         filled: true,
                         fillColor: Colors.grey[100],
                       ),
-                      value: _selectedOffenseId,
+                      initialValue: _selectedOffenseId,
                       items: _offenseList.map<DropdownMenuItem<String>>((dynamic item) {
                         return DropdownMenuItem<String>(
                           value: item['_id'], 
