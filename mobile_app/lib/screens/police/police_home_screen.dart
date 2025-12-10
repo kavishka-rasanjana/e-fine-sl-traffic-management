@@ -1,6 +1,7 @@
 import 'dart:convert'; // Base64 decode
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../services/auth_service.dart'; // AuthService එක Import කරන්න
 
 import 'new_fine.dart';
 import 'fine_history_screen.dart';
@@ -15,6 +16,7 @@ class PoliceHomeScreen extends StatefulWidget {
 
 class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
   final _storage = const FlutterSecureStorage();
+  final AuthService _authService = AuthService(); // AuthService එක හදාගන්න
 
   String officerName = "Loading..."; 
   String badgeNumber = ""; 
@@ -27,7 +29,9 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
     _loadUserData(); 
   }
 
+  // --- දත්ත ලබාගැනීමේ කොටස (Updated) ---
   Future<void> _loadUserData() async {
+    // 1. මුලින්ම Storage එකේ තියෙන පරණ දත්ත ටික පෙන්නනවා (වේගවත් බවට)
     String? storedName = await _storage.read(key: 'name');
     String? storedBadge = await _storage.read(key: 'badgeNumber');
     String? storedRank = await _storage.read(key: 'position');
@@ -40,6 +44,29 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
         officerRank = storedRank ?? "Officer";
         profileImageString = serverImg;
       });
+    }
+
+    // 2. දැන් Server එකෙන් අලුත්ම දත්ත ටික ගන්නවා (Real-time Update වෙන්න)
+    try {
+      final userData = await _authService.getUserProfile();
+      
+      if (mounted) {
+        setState(() {
+          officerName = userData['name'] ?? officerName;
+          badgeNumber = userData['badgeNumber'] ?? badgeNumber;
+          officerRank = userData['position'] ?? officerRank;
+          
+          // අලුත් Profile Image එක ගන්නවා
+          profileImageString = userData['profileImage'];
+        });
+
+        // 3. අලුත් Image එක Storage එකෙත් Save කරගන්නවා (ඊළඟ පාරට)
+        if (profileImageString != null) {
+          await _storage.write(key: 'serverProfileImage', value: profileImageString);
+        }
+      }
+    } catch (e) {
+      print("Error fetching latest data: $e");
     }
   }
 
@@ -166,7 +193,10 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                         color: Colors.green,
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()))
-                              .then((_) => _loadUserData()); // Refresh data on return
+                              .then((_) {
+                                // Profile එකෙන් ආපහු එනකොට Data ආයෙත් Load කරන්න කියනවා
+                                _loadUserData();
+                              }); 
                         },
                       ),
                     ],
@@ -189,7 +219,12 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 2, blurRadius: 5, offset: const Offset(0, 3)),
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1), 
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
           ],
         ),
         child: Column(
@@ -197,7 +232,10 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1), 
+                shape: BoxShape.circle,
+              ),
               child: Icon(icon, size: 35, color: color),
             ),
             const SizedBox(height: 15),

@@ -1,10 +1,10 @@
-import 'dart:convert'; // For Base64
-import 'dart:io';      // For File handling
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Camera Package
+import 'package:image_picker/image_picker.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import '../../services/auth_service.dart';
-import 'login_screen.dart'; 
+import 'login_screen.dart';
 
 class PoliceSignupScreen extends StatefulWidget {
   const PoliceSignupScreen({super.key});
@@ -39,7 +39,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
   List<Map<String, dynamic>> stationList = [];
   String? selectedStationCode;
   
-  // --- NEW: Rank & Image Variables ---
+  // --- 1. MISSING VARIABLES FIXED ---
   String? _selectedRank;
   File? _imageFile;
   String? _base64Image;
@@ -73,7 +73,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
     }
   }
 
-  // --- NEW: Image Capture Function ---
+  // --- 2. IMAGE CAPTURE FUNCTION ---
   Future<void> _captureImage() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -108,7 +108,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
     );
   }
 
-  // --- VALIDATION FUNCTIONS ---
+  // --- VALIDATIONS ---
   bool _isPasswordStrong(String password) {
     if (password.length < 8) return false;
     if (!password.contains(RegExp(r'[0-9]'))) return false; 
@@ -168,7 +168,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
   }
 
   Future<void> _completeRegistration() async {
-    // 1. Basic Empty Checks
+    // Basic Empty Checks
     if (_nameController.text.isEmpty || 
         _emailController.text.isEmpty || 
         _nicController.text.isEmpty || 
@@ -177,19 +177,19 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
       return;
     }
 
-    // 2. NEW: Rank Check
+    // Rank Check
     if (_selectedRank == null) {
       _showError("Please select your Rank / Position.");
       return;
     }
 
-    // 3. NEW: Image Check
+    // Image Check
     if (_base64Image == null) {
       _showError("Profile Picture is mandatory! Please tap the camera icon.");
       return;
     }
 
-    // 4. Validations
+    // Validations
     if (!_isValidEmail(_emailController.text)) {
       _showError("Please enter a valid Email Address.");
       return;
@@ -214,7 +214,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
     setState(() => _isLoading = true);
     
     try {
-      // 5. Sending All Data including Rank and Image
+      // Sending All Data
       await _authService.registerPolice({
         'name': _nameController.text,
         'badgeNumber': _badgeController.text,
@@ -222,10 +222,8 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
         'nic': _nicController.text,
         'phone': _phoneController.text,
         'password': _passwordController.text,
-        'station': selectedStationCode, // Station CODE is sent, Backend saves Name
+        'station': selectedStationCode, 
         'otp': _otpController.text,
-        
-        // --- New Data ---
         'position': _selectedRank,
         'profileImage': _base64Image,
       });
@@ -249,7 +247,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Police Registration"),
-        backgroundColor: const Color(0xFF0D47A1), // Official Blue
+        backgroundColor: const Color(0xFF0D47A1), 
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -294,12 +292,12 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
               SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _verifyOTP, style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Verify Code"))),
             ],
 
-            // STEP 3: Complete Profile (UPDATED)
+            // STEP 3: Complete Profile
             if (_currentStep == 2) ...[
               const Text("Step 3: Officer Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
               const SizedBox(height: 20),
               
-              // --- 1. NEW: CAMERA CAPTURE ---
+              // Camera Capture
               Center(
                 child: GestureDetector(
                   onTap: _captureImage,
@@ -336,19 +334,17 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
               const Text("* Photo is Mandatory", style: TextStyle(color: Colors.redAccent, fontSize: 12)),
               const SizedBox(height: 20),
 
-              // Normal Fields
               TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Full Name", prefixIcon: Icon(Icons.person), border: OutlineInputBorder())),
               const SizedBox(height: 15),
 
-              // --- 2. NEW: RANK DROPDOWN (Fixed: value -> initialValue) ---
+              // Rank Dropdown (Fixed: initialValue භාවිතා කිරීම)
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: "Select Rank / Position",
                   prefixIcon: Icon(Icons.security),
                   border: OutlineInputBorder(),
                 ),
-                // දෝෂය තිබුණු තැන: value වෙනුවට initialValue භාවිතා කර ඇත
-                initialValue: _selectedRank, 
+                initialValue: _selectedRank,
                 items: _policeRanks.map((String rank) {
                   return DropdownMenuItem<String>(
                     value: rank,

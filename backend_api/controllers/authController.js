@@ -13,15 +13,6 @@ const requestVerification = async (req, res) => {
   const { badgeNumber, stationCode } = req.body;
 
   try {
-    const existingOfficer = await Police.findOne({ badgeNumber });
-    
-    if (existingOfficer) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'This Badge Number is already registered. Please Login.' 
-      });
-    }
-
     const station = await Station.findOne({ stationCode });
 
     if (!station) {
@@ -109,7 +100,6 @@ const verifyOTP = async (req, res) => {
 // @desc    Register New Police Officer
 // @route   POST /api/auth/register-police
 const registerPolice = async (req, res) => {
-  // NEW: Accepting position (Rank) & profileImage
   const { name, badgeNumber, email, password, station, otp, nic, phone, position, profileImage } = req.body;
 
   try {
@@ -134,8 +124,6 @@ const registerPolice = async (req, res) => {
       phone,  
       password: hashedPassword,
       station,
-      
-      // --- NEW DATA FIELDS ---
       policeStation: station, 
       position: position,     
       profileImage: profileImage 
@@ -167,20 +155,9 @@ const registerDriver = async (req, res) => {
   const { name, nic, licenseNumber, email, phone, password } = req.body;
 
   try {
-    const existingDriver = await Driver.findOne({
-      $or: [
-        { email: email },
-        { nic: nic },
-        { licenseNumber: licenseNumber }
-      ]
-    });
-
-    if (existingDriver) {
-      let message = 'Driver already registered';
-      if (existingDriver.email === email) message = 'This Email is already registered.';
-      else if (existingDriver.nic === nic) message = 'This NIC is already registered.';
-      else if (existingDriver.licenseNumber === licenseNumber) message = 'This License Number is already registered.';
-      return res.status(400).json({ message });
+    const driverExists = await Driver.findOne({ email });
+    if (driverExists) {
+      return res.status(400).json({ message: 'Driver already registered' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -216,6 +193,7 @@ const registerDriver = async (req, res) => {
 
 // @desc    Login User (Police or Driver)
 // @route   POST /api/auth/login
+// --- THIS FUNCTION IS UPDATED ---
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
@@ -226,7 +204,7 @@ const loginUser = async (req, res) => {
     const officer = await Police.findOne({ email });
     if (officer) {
       user = officer;
-      role = officer.role; 
+      role = officer.role || 'police'; 
     } else {
       const driver = await Driver.findOne({ email });
       if (driver) {
@@ -243,15 +221,13 @@ const loginUser = async (req, res) => {
         email: user.email,
         role: role, 
         badgeNumber: user.badgeNumber, 
+        
+        // --- NEW FIELDS RETURNED FOR PROFILE ---
+        position: user.position,
+        policeStation: user.policeStation, 
+        profileImage: user.profileImage,
+        
         token: generateToken(user.id),
-
-        isVerified: role === 'driver' ? user.isVerified : true, 
-        licenseNumber: role === 'driver' ? user.licenseNumber : null,
-
-        // --- NEW PROFILE DATA ---
-        policeStation: role !== 'driver' ? user.policeStation : null,
-        position: role !== 'driver' ? user.position : null,
-        profileImage: role !== 'driver' ? user.profileImage : null,
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
@@ -261,11 +237,53 @@ const loginUser = async (req, res) => {
   }
 };
 
-// @desc    Update Profile Picture (NEW)
+// @desc    Get Current User Data
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+  try {
+    const user = await Police.findById(req.user.id).select('-password'); 
+    
+    if (user) {
+      res.status(200).json(user);
+    } else {
+      const driver = await Driver.findById(req.user.id).select('-password');
+      if (driver) {
+        res.status(200).json(driver);
+      } else {
+        res.status(404).json({ message: 'User not found' });
+      }
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Verify Driver by License Number (For Police)
+// @route   PUT /api/auth/verify-driver
+// @access  Private
+const verifyDriver = async (req, res) => {
+  const { licenseNumber } = req.body;
+
+  try {
+    const driver = await Driver.findOne({ licenseNumber }).select('-password');
+
+    if (driver) {
+      res.status(200).json({ success: true, data: driver });
+    } else {
+      res.status(404).json({ success: false, message: 'Driver not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Update Profile Picture
 // @route   PUT /api/auth/update-image
 // @access  Private
 const updateProfileImage = async (req, res) => {
-  const { id, profileImage } = req.body;
+  const id = req.body.id || req.user.id; 
+  const { profileImage } = req.body;
 
   try {
     let user = await Police.findById(id);
@@ -288,7 +306,7 @@ const updateProfileImage = async (req, res) => {
   }
 };
 
-// ... (Other Forgot Password & Reset functions remain same) ...
+// ... Password Reset Functions ...
 
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -345,28 +363,6 @@ const resetPassword = async (req, res) => {
   }
 };
 
-const getMe = async (req, res) => {
-  res.status(200).json(req.user);
-};
-
-const verifyDriver = async (req, res) => {
-  try {
-    const { licenseIssueDate, licenseExpiryDate, vehicleClasses } = req.body;
-    const driver = await Driver.findById(req.user.id);
-    if (!driver) return res.status(404).json({ message: 'Driver not found' });
-
-    driver.isVerified = true;
-    driver.licenseIssueDate = licenseIssueDate;
-    driver.licenseExpiryDate = licenseExpiryDate;
-    driver.vehicleClasses = vehicleClasses; 
-    await driver.save();
-
-    res.status(200).json({ success: true, message: 'Verified', driver });
-  } catch (error) {
-    res.status(500).json({ message: 'Server Error', error: error.message });
-  }
-};
-
 module.exports = { 
   requestVerification, 
   verifyOTP, 
@@ -375,8 +371,8 @@ module.exports = {
   forgotPassword, 
   verifyResetOTP, 
   resetPassword, 
-  loginUser, 
-  getMe, 
-  verifyDriver,
-  updateProfileImage // Added new function
+  loginUser,
+  getMe,             
+  verifyDriver,      
+  updateProfileImage 
 };

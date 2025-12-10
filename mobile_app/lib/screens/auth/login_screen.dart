@@ -4,7 +4,7 @@ import 'package:mobile_app/screens/auth/user_selection_screen.dart';
 import '../../services/auth_service.dart';
 import '../driver/driver_home_screen.dart';
 import '../police/police_home_screen.dart';
-
+import '../driver/license_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,8 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _handleLogin() async {
-    // Basic Validation
+Future<void> _handleLogin() async {
+    // 1. Validation
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       _showError("Please enter email and password");
       return;
@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Call Backend API
+      // 2. Sending the login request to the backend
       final userData = await _authService.login(
         _emailController.text, 
         _passwordController.text
@@ -47,22 +47,39 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Check Role and Navigate
-      // Currently we only have 'officer', but later we will check for 'driver'
-      String role = userData['role'] ?? 'driver'; 
+      String role = userData['role'] ?? 'driver';
 
+      // --- Logic 
+      
       if (role == 'officer' || role == 'admin') {
         Navigator.pushReplacement(
           context, 
           MaterialPageRoute(builder: (context) => const PoliceHomeScreen()),
         );
       } else {
-        // Fallback for driver (future implementation)
-        Navigator.pushReplacement(
-          context, 
-          MaterialPageRoute(builder: (context) => const DriverHomeScreen()),
-        );
+        // If the user is a driver, check if they are verified
+        bool isVerified = userData['isVerified'] ?? false;
+        String licenseNum = userData['licenseNumber'] ?? "";
+
+        if (isVerified) {
+          // if Verified -> Home Screen
+          Navigator.pushReplacement(
+            context, 
+            MaterialPageRoute(builder: (context) => const DriverHomeScreen()),
+          );
+        } else {
+            // If not verified -> Go to Verification Screen (passing the license number)
+          Navigator.pushReplacement(
+            context, 
+            MaterialPageRoute(
+              builder: (context) => LicenseVerificationScreen(
+                registeredLicenseNumber: licenseNum,
+              ),
+            ),
+          );
+        }
       }
+      // ----------------------------
 
     } catch (e) {
       _showError(e.toString().replaceAll("Exception: ", ""));

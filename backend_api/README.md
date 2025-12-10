@@ -1,3 +1,44 @@
+# Backend API – E-Fine SL System
+
+## Backend Architecture Enhancements
+
+### New API Endpoints Implemented
+
+```http
+PUT /api/auth/verify-driver
+```
+- Protected route to update a driver's profile with OCR-scanned data (Issue Date, Expiry Date, Vehicle Classes).
+- Sets `isVerified: true`.
+
+```http
+POST /api/auth/register-driver
+```
+- Registration endpoint with duplicate checks for Email, NIC, and License Number.
+
+```http
+GET /api/auth/me
+```
+- Secure endpoint to fetch the currently logged-in user's full profile and demerit status.
+
+### Database Model Updates (`models/driverModel.js`)
+- Added fields:
+	- `licenseIssueDate` (String)
+	- `licenseExpiryDate` (String)
+	- `vehicleClasses` (String, to handle OCR variations)
+	- `isVerified` (Boolean)
+	- `demeritPoints` (Number)
+
+### Security Improvements
+- Enhanced `middleware/authMiddleware.js` to support dual-role authentication (Police & Driver) from a single login route.
+- Implemented rigorous input validation in Controllers to prevent duplicate registrations.
+
+## Future Plans
+- Implement the 'Fine Issuance' API for Police.
+- Create the 'Demerit Calculation Engine' logic.
+- Integrate SMS/Email notification services for fine alerts.
+
+---
+This documentation reflects the latest backend enhancements for the E-Fine SL system, supporting secure, scalable, and robust traffic management operations.
 
 
 # Backend API – Police Authentication Module

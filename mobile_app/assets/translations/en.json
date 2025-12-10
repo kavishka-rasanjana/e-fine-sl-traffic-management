@@ -1,0 +1,40 @@
+{
+  "greeting_morning": "Good Morning",
+  "greeting_afternoon": "Good Afternoon",
+  "greeting_evening": "Good Evening",
+
+  "rating_status": "Driver Rating Status",
+  "points": "Points",
+  "pay_fines": "Pay Fines",
+  "history": "History",
+  "wallet": "Wallet",
+  "report": "Report",
+
+  "unpaid_title": "Unpaid Fines Detected!",
+  "unpaid_msg": "You have pending fines. Pay now to avoid demerit points.",
+
+  "status_excellent": "Excellent Standing",
+  "status_warning": "Warning Level",
+  "status_risk": "High Risk of Suspension!",
+
+  "home": "Home",
+  "profile": "Profile",
+
+  "my_profile": "My Profile",
+  "nic_label": "NIC Number",
+  "license_label": "License No",
+  "mobile_label": "Mobile No",
+  "demerits_label": "Demerit Points",
+  "points_display": "{} Points",
+
+  "verified_driver": "Verified Driver",
+  "not_verified": "Not Verified",
+  "personal_details": "Personal Details",
+  "digital_license_info": "Digital License Info",
+  "issue_date": "Issue Date",
+  "expiry_date": "Expiry Date",
+  "allowed_vehicles": "Allowed Vehicles",
+
+  "no_classes": "No classes found"
+
+}

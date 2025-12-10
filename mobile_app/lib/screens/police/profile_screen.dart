@@ -1,10 +1,10 @@
-import 'dart:convert'; // Base64 සදහා
+import 'dart:convert'; 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/auth_service.dart'; 
-import '../auth/login_screen.dart'; // Logout වෙද්දී යන්න Login Screen එක ඕන
+import '../auth/login_screen.dart'; 
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,36 +23,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _badgeNumber = "Loading...";
   String _email = "Loading...";
   String _station = "Loading...";
-  String _position = "Loading...";
+  String _position = "Loading..."; // Rank
   
   String? _profileImageBase64; 
   bool _isUploading = false; 
+  bool _isLoadingData = true; // දත්ත ලෝඩ් වෙනකම් පෙන්නන්න
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _fetchLatestUserData(); // අලුත් ක්‍රමය: කෙලින්ම Server එකෙන් දත්ත ගන්නවා
   }
 
-  Future<void> _loadUserData() async {
-    String? id = await _storage.read(key: 'userId');
-    String? name = await _storage.read(key: 'name');
-    String? badge = await _storage.read(key: 'badgeNumber');
-    String? email = await _storage.read(key: 'email');
-    String? station = await _storage.read(key: 'policeStation');
-    String? position = await _storage.read(key: 'position');
-    String? serverImg = await _storage.read(key: 'serverProfileImage');
+  // --- අලුත් FUNCTION එක: Server එකෙන් Data ගන්න ---
+  Future<void> _fetchLatestUserData() async {
+    try {
+      // 1. මුලින්ම Storage එකේ තියෙන මූලික ටික පෙන්නනවා (වේගවත් බවට)
+      String? savedId = await _storage.read(key: 'userId');
+      String? savedName = await _storage.read(key: 'name');
+      
+      if (mounted) {
+        setState(() {
+           if (savedId != null) _userId = savedId;
+           if (savedName != null) _officerName = savedName;
+        });
+      }
 
-    if (mounted) {
-      setState(() {
-        _userId = id ?? "";
-        _officerName = name ?? "Officer";
-        _badgeNumber = badge ?? "Unknown";
-        _email = email ?? "Not set";
-        _station = station ?? "Unknown Station";
-        _position = position ?? "Officer";
-        _profileImageBase64 = serverImg; 
-      });
+      // 2. Server එකට කෝල් කරලා අලුත්ම විස්තර ගන්නවා
+      final userData = await _authService.getUserProfile();
+
+      if (mounted) {
+        setState(() {
+          _userId = userData['_id'] ?? _userId;
+          _officerName = userData['name'] ?? "Unknown";
+          _badgeNumber = userData['badgeNumber'] ?? "Not Assigned";
+          _email = userData['email'] ?? "No Email";
+          
+          // Rank / Position
+          _position = userData['position'] ?? "Officer";
+          
+          // Station (සමහරවිට Object එකක්, සමහරවිට String එකක්)
+          if (userData['policeStation'] is Map) {
+             _station = userData['policeStation']['name'] ?? "Unknown Station";
+          } else {
+             _station = userData['policeStation'] ?? "Unknown Station";
+          }
+
+          // Profile Image
+          _profileImageBase64 = userData['profileImage'];
+          
+          _isLoadingData = false;
+        });
+
+        // 3. අලුත් Data ටික Storage එකෙත් Save කරගන්නවා (ඊළඟ පාරට ඕන වෙයි කියලා)
+        await _storage.write(key: 'name', value: _officerName);
+        await _storage.write(key: 'badgeNumber', value: _badgeNumber);
+        await _storage.write(key: 'position', value: _position);
+      }
+
+    } catch (e) {
+      print("Error fetching profile: $e");
+      if (mounted) {
+        setState(() {
+          _officerName = "Error Loading Data";
+          _isLoadingData = false;
+        });
+      }
     }
   }
 
@@ -71,11 +107,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         // Backend Update
         await _authService.updateProfileImage(_userId, base64String);
-
-        // Local Storage Update
-        await _storage.write(key: 'serverProfileImage', value: base64String);
-        // පරණ Local Image එකක් තිබුනොත් ඒක මකනවා (Server එකේ එකට මුල් තැන දෙන්න)
-        await _storage.delete(key: 'localProfileImage');
 
         if (mounted) {
           setState(() {
@@ -122,90 +153,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xFF0D47A1),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Center(
-              child: Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF0D47A1), width: 3),
-                    ),
-                    child: CircleAvatar(
-                      radius: 70,
-                      backgroundColor: Colors.white,
-                      child: _isUploading 
-                          ? const CircularProgressIndicator()
-                          : CircleAvatar(
-                              radius: 70,
-                              backgroundColor: Colors.transparent,
-                              backgroundImage: _getProfileImage(),
-                            ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: InkWell(
-                      onTap: _isUploading ? null : _pickAndUploadImage,
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(
-                          color: Colors.orange,
+      body: _isLoadingData 
+          ? const Center(child: CircularProgressIndicator()) // Data එනකම් Loading පෙන්වනවා
+          : SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Center(
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          boxShadow: [BoxShadow(blurRadius: 5, color: Colors.black26)],
+                          border: Border.all(color: const Color(0xFF0D47A1), width: 3),
                         ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        child: CircleAvatar(
+                          radius: 70,
+                          backgroundColor: Colors.white,
+                          child: _isUploading 
+                              ? const CircularProgressIndicator()
+                              : CircleAvatar(
+                                  radius: 70,
+                                  backgroundColor: Colors.transparent,
+                                  backgroundImage: _getProfileImage(),
+                                ),
+                        ),
                       ),
-                    ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: InkWell(
+                          onTap: _isUploading ? null : _pickAndUploadImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: Colors.orange,
+                              shape: BoxShape.circle,
+                              boxShadow: [BoxShadow(blurRadius: 5, color: Colors.black26)],
+                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+
+                const SizedBox(height: 15),
+                Text(_officerName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+                Text(_position.toUpperCase(), style: TextStyle(fontSize: 14, color: Colors.grey[700], letterSpacing: 1.2, fontWeight: FontWeight.w600)),
+
+                const SizedBox(height: 30),
+
+                _buildInfoCard(Icons.badge, "Badge Number", _badgeNumber),
+                const SizedBox(height: 15),
+                _buildInfoCard(Icons.local_police, "Police Station", _station),
+                const SizedBox(height: 15),
+                _buildInfoCard(Icons.email, "Email Address", _email),
+                
+                const SizedBox(height: 40),
+                
+                // LOGOUT BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await _storage.deleteAll(); 
+                      if (context.mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          (Route<dynamic> route) => false,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.logout, color: Colors.white),
+                    label: const Text("Logout", style: TextStyle(fontSize: 16, color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ),
+              ],
             ),
-
-            const SizedBox(height: 15),
-            Text(_officerName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
-            Text(_position.toUpperCase(), style: TextStyle(fontSize: 14, color: Colors.grey[700], letterSpacing: 1.2, fontWeight: FontWeight.w600)),
-
-            const SizedBox(height: 30),
-
-            _buildInfoCard(Icons.badge, "Badge Number", _badgeNumber),
-            const SizedBox(height: 15),
-            _buildInfoCard(Icons.local_police, "Police Station", _station),
-            const SizedBox(height: 15),
-            _buildInfoCard(Icons.email, "Email Address", _email),
-            
-            const SizedBox(height: 40),
-            
-            // --- LOGOUT BUTTON (FIXED) ---
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  // 1. පරණ Data ඔක්කොම මකනවා
-                  await _storage.deleteAll(); 
-                  
-                  // 2. Login Screen එකට යනවා
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      (Route<dynamic> route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout, color: Colors.white),
-                label: const Text("Logout", style: TextStyle(fontSize: 16, color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
