@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+
 class FineService {
   // ------------------------------------------------------------------
   // BASE URL CONFIGURATION
@@ -45,11 +46,11 @@ class FineService {
       if (response.statusCode == 201) {
         return true; 
       } else {
-        print("Server Error: ${response.body}");
+        // TODO: Handle server error appropriately (e.g., log or show a message)
         return false; 
       }
     } catch (e) {
-      print("App Connection Error: $e");
+      // TODO: Handle connection error appropriately (e.g., log or show a message)
       return false;
     }
   }

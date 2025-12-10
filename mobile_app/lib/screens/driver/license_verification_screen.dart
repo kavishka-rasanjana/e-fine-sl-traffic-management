@@ -99,9 +99,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     }
   }
 
-  // --- 2. BACK SIDE (NEW LOGIC - Category + Date Validation) ---
-// --- 2. BACK SIDE (Improved for Icons/Noise) ---
-// --- 2. BACK SIDE (GEOMETRIC MATCHING - The Best Method) ---
+  // --- 2. BACK SIDE (GEOMETRIC MATCHING) ---
   void _extractBackData(RecognizedText recognizedText) {
     List<Map<String, String>> validResults = [];
     
@@ -141,7 +139,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       // Category එකේ මැද උස (Center Y)
       double catY = catEl.boundingBox.center.dy;
       
-      // Y පරතරය (Threshold): කැමරාව ටිකක් ඇල වුනත් අල්ලගන්න (Pixel 20-30ක් වගේ)
+      // Y පරතරය (Threshold): කැමරාව ටිකක් ඇල වුනත් අල්ලගන්න (Pixel 30ක් වගේ)
       double yThreshold = 30.0; 
 
       // මේ Category එකේ උසට සමාන උසකින් තියෙන Dates හොයනවා
@@ -197,12 +195,13 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     }
   }
 
-  // --- 3. SUBMIT DATA ---
+  // --- 3. SUBMIT DATA (FIXED) ---
   Future<void> _submitData() async {
     String scannedNo = _licenseNoController.text.toUpperCase();
     String registeredNo = widget.registeredLicenseNumber.toUpperCase();
 
-    if (scannedNo.isEmpty || scannedNo != registeredNo) {
+    // Validation - මුලින්ම හිස්ද බලනවා, ඊට පස්සේ මැච් වෙනවද බලනවා
+    if (scannedNo.isEmpty || !scannedNo.contains(registeredNo)) {
       _showDialog("Verification Failed", "License number ($scannedNo) does not match your registered number ($registeredNo).");
       return;
     }
@@ -215,11 +214,14 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      await AuthService().verifyDriverLicense(
-        issueDate: _issueDateController.text.isEmpty ? _expiryDateController.text : _issueDateController.text,
-        expiryDate: _expiryDateController.text,
-        vehicleClasses: extractedClasses,
-      );
+      // මෙන්න නිවැරදි කරපු කොටස:
+      // දත්ත සියල්ලම තනි Map {} එකක් ඇතුලේ යැවිය යුතුයි.
+      await AuthService().verifyDriverLicense({
+        'licenseNumber': _licenseNoController.text,
+        'issueDate': _issueDateController.text.isEmpty ? _expiryDateController.text : _issueDateController.text,
+        'expiryDate': _expiryDateController.text,
+        'vehicleClasses': extractedClasses,
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
