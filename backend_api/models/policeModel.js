@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const policeSchema = mongoose.Schema({
-    // --- පරණ විස්තර ---
+ 
     name: { 
         type: String, 
         required: true 
@@ -45,4 +45,4 @@ const policeSchema = mongoose.Schema({
    });  // CreatedAt, UpdatedAt 
 
 
-module.exports = mongoose.model('User', policeSchema);
+module.exports = mongoose.model('Police', policeSchema,'polices');

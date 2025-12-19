@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 
-// Controller එකෙන් අවශ්‍ය ඔක්කොම Functions එකම තැනක Import කරගන්න
 const { 
   requestVerification, 
   verifyOTP, 
@@ -16,7 +15,7 @@ const {
   updateProfileImage 
 } = require('../controllers/authController');
 
-// Middleware එක හරියටම import කරගන්න (Folder එකේ නම ගැන සැලකිලිමත් වන්න)
+
 const { protect } = require('../middleware/authMiddleware');
 
 // --- Routes ---

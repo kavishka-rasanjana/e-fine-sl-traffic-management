@@ -3,17 +3,9 @@ import 'package:http/http.dart' as http;
 
 
 class FineService {
-  // ------------------------------------------------------------------
-  // BASE URL CONFIGURATION
-  // ------------------------------------------------------------------
-  
-  // ඔයා එවපු අලුත් IP එක මෙතන දාලා තියෙනවා. 
-  // හැමතිස්සෙම 'ipconfig' ගහලා මේක හරියටම චෙක් කරගන්න.
+
   static const String baseUrl = 'http://10.159.39.6:5000/api/fines'; 
 
-  // ------------------------------------------------------------------
-  // 1. Offense List එක ගන්න Function එක (වෙනසක් නෑ)
-  // ------------------------------------------------------------------
   Future<List<dynamic>> getOffenses() async {
     try {
       final response = await http.get(
@@ -31,10 +23,7 @@ class FineService {
     }
   }
 
-  // ------------------------------------------------------------------
-  // 2. අලුත් Fine එකක් Issue කරන Function එක
-  // ------------------------------------------------------------------
-  // (වෙනසක් නෑ, මොකද අපි UI එක පැත්තෙන් ID එක Map එකට දාලා එවන නිසා)
+ 
   Future<bool> issueNewFine(Map<String, dynamic> fineData) async {
     try {
       final response = await http.post(
@@ -55,14 +44,9 @@ class FineService {
     }
   }
 
-  // ------------------------------------------------------------------
-  // 3. Fine History එක ගන්න Function එක (ALUTH UPDATE EKA)
-  // ------------------------------------------------------------------
-  // මෙතනට badgeNumber එක pass කරනවා Parameter එකක් විදිහට
   Future<List<dynamic>> getFineHistory(String badgeNumber) async {
     try {
-      // URL එකට Query Parameter එකක් විදිහට officerId එක එකතු කරනවා
-      // උදාහරණ: .../api/fines/history?officerId=12345
+
       final response = await http.get(
         Uri.parse('$baseUrl/history?officerId=$badgeNumber'), 
         headers: {'Content-Type': 'application/json'},
