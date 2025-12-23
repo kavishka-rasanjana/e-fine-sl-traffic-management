@@ -7,28 +7,47 @@ import 'driver_home_screen.dart';
 
 class LicenseVerificationScreen extends StatefulWidget {
   final String registeredLicenseNumber;
+  final String registeredNIC;
 
-  const LicenseVerificationScreen({super.key, required this.registeredLicenseNumber});
+  const LicenseVerificationScreen({
+    super.key, 
+    required this.registeredLicenseNumber,
+    required this.registeredNIC
+  });
 
   @override
   State<LicenseVerificationScreen> createState() => _LicenseVerificationScreenState();
 }
 
 class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
+  // Images & Picker
   File? _frontImage;
   File? _backImage;
   final ImagePicker _picker = ImagePicker();
+  
+  // State Variables
   bool _isScanning = false;
   bool _isSubmitting = false;
-  int _currentStep = 0;
+  int _currentStep = 0; // 0: Front, 1: Back, 2: Review
 
+  // --- CONTROLLERS ---
+  // License Data (Read Only)
   final _licenseNoController = TextEditingController();
+  final _nicController = TextEditingController();
   final _issueDateController = TextEditingController();
   final _expiryDateController = TextEditingController();
   
-  // දත්ත පෙන්වීමට
+  // Address Data (Editable)
+  final _street1Controller = TextEditingController();
+  final _street2Controller = TextEditingController();
+  final _cityController = TextEditingController();
+  final _postalCodeController = TextEditingController();
+
+  // Vehicle Classes Data
   List<Map<String, String>> extractedClasses = [];
 
+  // --- CAMERA & OCR LOGIC ---
+  
   Future<void> _pickImage(bool isFront) async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.camera);
@@ -55,7 +74,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       if (isFront) {
         _extractFrontData(recognizedText.text);
       } else {
-        _extractBackData(recognizedText);
+        _extractBackData(recognizedText); // Geometric Matching Logic
       }
     } catch (e) {
       _showError("Scanning Failed: $e");
@@ -65,29 +84,41 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     }
   }
 
-  // --- 1. FRONT SIDE (Dates & License No) ---
+  // --- 1. FRONT SIDE EXTRACTION ---
   void _extractFrontData(String text) {
-    // License Number Extraction
+    // A. License Number Extraction
     RegExp licenseNoRegExp = RegExp(r'5\.\s*([A-Z0-9\s\.\-]+)');
     RegExpMatch? licenseMatch = licenseNoRegExp.firstMatch(text);
     
-    String rawLicense = "";
-    if (licenseMatch != null) {
-      rawLicense = licenseMatch.group(1) ?? "";
-    } else {
-      RegExp fallback = RegExp(r'[A-Z]\d{7}|\d{12}');
-      RegExpMatch? fallbackMatch = fallback.firstMatch(text.replaceAll(' ', ''));
-      if (fallbackMatch != null) rawLicense = fallbackMatch.group(0) ?? "";
+    String rawLicense = licenseMatch?.group(1) ?? "";
+    if (rawLicense.isEmpty) {
+       RegExp fallback = RegExp(r'[A-Z]\d{7}|\d{12}');
+       rawLicense = fallback.firstMatch(text.replaceAll(' ', ''))?.group(0) ?? "";
     }
-    
-    // Clean License Number
     String cleanLicense = rawLicense.replaceAll(RegExp(r'[^A-Z0-9]'), '');
     if (cleanLicense.length > 8 && RegExp(r'^[A-Z]').hasMatch(cleanLicense)) {
         cleanLicense = cleanLicense.substring(0, 8);
     }
     _licenseNoController.text = cleanLicense;
 
-    // Dates Extraction
+    // B. NIC Extraction (4d)
+    RegExp nicLabelRegExp = RegExp(r'4d\.\s*([0-9]{9}[vVxX]|[0-9]{12})');
+    RegExpMatch? nicMatch = nicLabelRegExp.firstMatch(text.replaceAll(' ', ''));
+    if (nicMatch != null) {
+      _nicController.text = nicMatch.group(1) ?? "";
+    } else {
+      RegExp nicFallback = RegExp(r'\b([0-9]{9}[vVxX]|[0-9]{12})\b');
+      Iterable<RegExpMatch> matches = nicFallback.allMatches(text.replaceAll(' ', ''));
+      for (var m in matches) {
+        String found = m.group(0)!;
+        if (found != cleanLicense) {
+           _nicController.text = found;
+           break; 
+        }
+      }
+    }
+
+    // C. Dates Extraction
     RegExp dateRegExp = RegExp(r'\d{2}[./-]\d{2}[./-]\d{4}|\d{4}[./-]\d{2}[./-]\d{2}');
     List<String> foundDates = dateRegExp.allMatches(text).map((m) => m.group(0)!).toList();
 
@@ -103,11 +134,11 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
   void _extractBackData(RecognizedText recognizedText) {
     List<Map<String, String>> validResults = [];
     
-    // 1. Valid categories and date pattern
+    // Configs
     List<String> targetClasses = ['A1', 'A', 'B1', 'B', 'C1', 'C', 'CE', 'D1', 'D', 'G1', 'J'];
-    RegExp datePattern = RegExp(r'^\d{2}[.]\d{2}[.]\d{4}$'); // 09.03.2021 වගේ (තිත් තියෙන)
+    RegExp datePattern = RegExp(r'^\d{2}[.]\d{2}[.]\d{4}$'); 
 
-    // 2. අපි මුළු පින්තූරයේම තියෙන සියලුම "Elements" (කුඩා වචන කෑලි) එකතු කරගමු
+    // Elements එකතු කරගැනීම
     List<TextElement> allElements = [];
     for (TextBlock block in recognizedText.blocks) {
       for (TextLine line in block.lines) {
@@ -117,39 +148,33 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       }
     }
 
-    // 3. දැන් අපි "Categories" සහ "Dates" වෙන වෙනම හොයාගමු
+    // වෙන් කිරීම
     List<TextElement> foundCategoryElements = [];
     List<TextElement> foundDateElements = [];
 
     for (TextElement element in allElements) {
-      String text = element.text.trim().toUpperCase();
-      
-      // Category එකක්ද බලනවා (A1, B...)
+      String text = element.text.trim().toUpperCase().replaceAll('.', ''); 
       if (targetClasses.contains(text)) {
         foundCategoryElements.add(element);
-      } 
-      // Date එකක්ද බලනවා (09.03.2021)
-      else if (datePattern.hasMatch(text)) {
+      } else if (datePattern.hasMatch(element.text.trim())) {
         foundDateElements.add(element);
       }
     }
 
-    // 4. මැජික් එක මෙතනයි: එකම පේළියේ (Y-Axis) තියෙන ඒවා යා කරනවා
+    // Matching Logic (Y-Axis Alignment)
     for (TextElement catEl in foundCategoryElements) {
-      // Category එකේ මැද උස (Center Y)
       double catY = catEl.boundingBox.center.dy;
       
       // Y පරතරය (Threshold): කැමරාව ටිකක් ඇල වුනත් අල්ලගන්න (Pixel 30ක් වගේ)
       double yThreshold = 30.0; 
 
-      // මේ Category එකේ උසට සමාන උසකින් තියෙන Dates හොයනවා
       List<TextElement> matchingDates = foundDateElements.where((dateEl) {
         double dateY = dateEl.boundingBox.center.dy;
-        return (dateY - catY).abs() < yThreshold; // උස පරතරය අඩු නම් එකම පේළියේ
+        // Category එකට වඩා දකුණු පැත්තේ තිබිය යුතුයි
+        return (dateY - catY).abs() < yThreshold && dateEl.boundingBox.left > catEl.boundingBox.left;
       }).toList();
 
-      // දින හම්බුනා නම්, ඒවා වම් සිට දකුණට (X-Axis) පෙළගස්වනවා
-      // වම් පැත්තේ තියෙන්නේ Issue Date, දකුණු පැත්තේ Expiry Date
+      // වම් සිට දකුණට (Issue -> Expiry)
       matchingDates.sort((a, b) => a.boundingBox.left.compareTo(b.boundingBox.left));
 
       if (matchingDates.isNotEmpty) {
@@ -157,18 +182,13 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
         String issue = "Unknown";
         String expiry = "Unknown";
 
-        // දින 2ක් හෝ වැඩි නම්
         if (matchingDates.length >= 2) {
-          issue = matchingDates[0].text; // පළමු එක Issue Date (Col 10)
-          expiry = matchingDates[1].text; // දෙවන එක Expiry Date (Col 11)
-        } 
-        // එක දිනයක් විතරක් නම් (ගොඩක් වෙලාවට ඒක Expiry එක)
-        else if (matchingDates.length == 1) {
+          issue = matchingDates[0].text;
+          expiry = matchingDates[1].text;
+        } else if (matchingDates.length == 1) {
           expiry = matchingDates[0].text;
         }
 
-        // List එකට දාගන්නවා
-        // (Duplicate නොවෙන්න බලනවා)
         bool exists = validResults.any((e) => e['category'] == category);
         if (!exists) {
           validResults.add({
@@ -180,25 +200,26 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       }
     }
 
-    // 5. ප්‍රතිඵල පෙන්වීම
     if (validResults.isNotEmpty) {
-      setState(() {
-        extractedClasses = validResults;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Success! Found ${validResults.length} categories."), backgroundColor: Colors.green)
-      );
+      setState(() { extractedClasses = validResults; });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Found ${validResults.length} vehicle classes!"), backgroundColor: Colors.green));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Align camera straight and try again."), backgroundColor: Colors.orange)
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No aligned dates found. Try aligning straight."), backgroundColor: Colors.orange));
     }
   }
 
   // --- 3. SUBMIT DATA (FIXED) ---
   Future<void> _submitData() async {
-    String scannedNo = _licenseNoController.text.toUpperCase();
-    String registeredNo = widget.registeredLicenseNumber.toUpperCase();
+    String scannedLicense = _licenseNoController.text.toUpperCase().replaceAll(' ', '');
+    String registeredLicense = widget.registeredLicenseNumber.toUpperCase().replaceAll(' ', '');
+    String scannedNIC = _nicController.text.toUpperCase().replaceAll(' ', '');
+    String registeredNIC = widget.registeredNIC.toUpperCase().replaceAll(' ', '');
+
+    // Validation 1: License Check
+    if (scannedLicense != registeredLicense) {
+      _showDialog("Verification Failed", "Scanned License ($scannedLicense) does not match registered ($registeredLicense).");
+      return;
+    }
 
     // Validation - මුලින්ම හිස්ද බලනවා, ඊට පස්සේ මැච් වෙනවද බලනවා
     if (scannedNo.isEmpty || !scannedNo.contains(registeredNo)) {
@@ -206,8 +227,18 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       return;
     }
 
-    if (_expiryDateController.text.isEmpty) {
-      _showDialog("Missing Data", "Expiry date not detected. Please re-scan front side.");
+    // Validation 3: Address Check (Strict)
+    if (_street1Controller.text.isEmpty || 
+        _street2Controller.text.isEmpty || 
+        _cityController.text.isEmpty || 
+        _postalCodeController.text.isEmpty) {
+      _showDialog("Missing Address", "Please fill all address fields.");
+      return;
+    }
+    
+    // Validation 4: Dates Check
+    if (_issueDateController.text.isEmpty || _expiryDateController.text.isEmpty) {
+      _showDialog("Incomplete Scan", "Issue or Expiry date is missing. Please re-scan front side.");
       return;
     }
 
@@ -224,9 +255,6 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Profile Verified Successfully!"), backgroundColor: Colors.green)
-        );
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const DriverHomeScreen()),
           (route) => false,
@@ -246,6 +274,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
   void _showDialog(String title, String msg) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Text(title, style: const TextStyle(color: Colors.red)),
         content: Text(msg),
@@ -254,6 +283,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     );
   }
 
+  // --- BUILD UI ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -265,7 +295,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
             Row(children: [_buildStepCircle(0, "Front"), _buildStepLine(0), _buildStepCircle(1, "Back"), _buildStepLine(1), _buildStepCircle(2, "Review")]),
             const SizedBox(height: 30),
 
-            // STEP 0: Front
+            // --- STEP 0: FRONT ---
             if (_currentStep == 0) ...[
               const Text("Step 1: Scan Front Side", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
@@ -276,7 +306,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
                 Padding(padding: const EdgeInsets.only(top: 10), child: ElevatedButton(onPressed: () => setState(() => _currentStep = 1), child: const Text("Next: Scan Back"))),
             ],
 
-            // STEP 1: Back
+            // --- STEP 1: BACK ---
             if (_currentStep == 1) ...[
               const Text("Step 2: Scan Back Side", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
@@ -287,36 +317,38 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
                 Padding(padding: const EdgeInsets.only(top: 10), child: ElevatedButton(onPressed: () => setState(() => _currentStep = 2), child: const Text("Next: Review"))),
             ],
 
-            // STEP 2: Review
+            // --- STEP 2: REVIEW ---
             if (_currentStep == 2) ...[
-              const Text("Step 3: Verify Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Step 3: Verify & Add Address", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               
               _buildTextField("License No", _licenseNoController, readOnly: true),
+              _buildTextField("NIC (Scanned)", _nicController, readOnly: true),
               _buildTextField("Issue Date", _issueDateController, readOnly: true),
               _buildTextField("Expiry Date", _expiryDateController, readOnly: true),
 
-              const SizedBox(height: 15),
-              const Align(alignment: Alignment.centerLeft, child: Text("Valid Vehicle Classes:", style: TextStyle(fontWeight: FontWeight.bold))),
-              
-              // Detected Classes List
+              const Divider(),
+              const Text("Residential Address", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              const SizedBox(height: 10),
+              _buildTextField("Street 1", _street1Controller),
+              _buildTextField("Street 2", _street2Controller),
+              Row(children: [
+                Expanded(child: _buildTextField("City", _cityController)),
+                const SizedBox(width: 10),
+                Expanded(child: _buildTextField("Postal Code", _postalCodeController, isNumber: true)),
+              ]),
+              const Divider(),
+
+              const Align(alignment: Alignment.centerLeft, child: Text("Vehicle Classes:", style: TextStyle(fontWeight: FontWeight.bold))),
               Container(
-                margin: const EdgeInsets.only(top: 5),
+                margin: const EdgeInsets.only(top: 5, bottom: 20),
                 padding: const EdgeInsets.all(10),
-                width: double.infinity,
                 decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(5), color: Colors.grey[200]),
                 child: extractedClasses.isEmpty 
-                  ? const Text("No valid classes found (Must have dates next to them)", style: TextStyle(color: Colors.red))
-                  : Wrap(
-                      spacing: 8.0,
-                      children: extractedClasses.map((item) => Chip(
-                        label: Text(item['category']!),
-                        backgroundColor: Colors.green[100],
-                      )).toList(),
-                    ),
+                  ? const Text("No valid classes found", style: TextStyle(color: Colors.red))
+                  : Wrap(spacing: 8.0, children: extractedClasses.map((item) => Chip(label: Text(item['category']!), backgroundColor: Colors.green[100])).toList()),
               ),
 
-              const SizedBox(height: 30),
               _isSubmitting 
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
@@ -325,21 +357,16 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
                     child: const Text("Confirm & Verify", style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
               
-              TextButton(
-                onPressed: (){ 
-                  // Reset Logic
-                  setState(() {
-                    _currentStep = 0;
-                    _frontImage = null;
-                    _backImage = null;
-                    _licenseNoController.clear();
-                    _issueDateController.clear();
-                    _expiryDateController.clear();
-                    extractedClasses.clear();
-                  }); 
-                }, 
-                child: const Text("Re-scan Images")
-              )
+              TextButton(onPressed: (){ 
+                setState(() { 
+                  _currentStep = 0; 
+                  _frontImage = null; 
+                  _backImage = null; 
+                  _licenseNoController.clear(); 
+                  _nicController.clear(); 
+                  extractedClasses.clear(); 
+                }); 
+              }, child: const Text("Re-scan"))
             ],
 
             if (_isScanning) const Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()),
@@ -349,13 +376,14 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     );
   }
 
-  // --- UI HELPERS ---
-  Widget _buildTextField(String label, TextEditingController controller, {bool readOnly = false}) {
+  // Helpers
+  Widget _buildTextField(String label, TextEditingController controller, {bool readOnly = false, bool isNumber = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: TextField(
         controller: controller,
         readOnly: readOnly,
+        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
