@@ -1,11 +1,12 @@
-import 'dart:convert'; // Base64 decode
+import 'dart:convert'; // JSON decode සඳහා
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../services/auth_service.dart'; // AuthService එක Import කරන්න
+import '../../services/auth_service.dart';
 
 import 'new_fine.dart';
 import 'fine_history_screen.dart';
 import 'profile_screen.dart';
+import 'qr_scanner_screen.dart'; // [NEW] QR Scanner එක Import කළා
 
 class PoliceHomeScreen extends StatefulWidget {
   const PoliceHomeScreen({super.key});
@@ -16,7 +17,7 @@ class PoliceHomeScreen extends StatefulWidget {
 
 class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
   final _storage = const FlutterSecureStorage();
-  final AuthService _authService = AuthService(); // AuthService එක හදාගන්න
+  final AuthService _authService = AuthService();
 
   String officerName = "Loading..."; 
   String badgeNumber = ""; 
@@ -29,9 +30,8 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
     _loadUserData(); 
   }
 
-  // --- දත්ත ලබාගැනීමේ කොටස (Updated) ---
+  // --- දත්ත ලබාගැනීමේ කොටස ---
   Future<void> _loadUserData() async {
-    // 1. මුලින්ම Storage එකේ තියෙන පරණ දත්ත ටික පෙන්නනවා (වේගවත් බවට)
     String? storedName = await _storage.read(key: 'name');
     String? storedBadge = await _storage.read(key: 'badgeNumber');
     String? storedRank = await _storage.read(key: 'position');
@@ -46,7 +46,6 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
       });
     }
 
-    // 2. දැන් Server එකෙන් අලුත්ම දත්ත ටික ගන්නවා (Real-time Update වෙන්න)
     try {
       final userData = await _authService.getUserProfile();
       
@@ -55,12 +54,9 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
           officerName = userData['name'] ?? officerName;
           badgeNumber = userData['badgeNumber'] ?? badgeNumber;
           officerRank = userData['position'] ?? officerRank;
-          
-          // අලුත් Profile Image එක ගන්නවා
           profileImageString = userData['profileImage'];
         });
 
-        // 3. අලුත් Image එක Storage එකෙත් Save කරගන්නවා (ඊළඟ පාරට)
         if (profileImageString != null) {
           await _storage.write(key: 'serverProfileImage', value: profileImageString);
         }
@@ -70,7 +66,107 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
     }
   }
 
-  // --- Photo Display Logic ---
+  // --- [NEW] QR Scan Logic ---
+  Future<void> _handleQRScan() async {
+    // 1. Scanner Screen එකට යනවා
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+    );
+
+    // 2. දත්ත ලැබුනොත් (Scan වුනොත්)
+    if (result != null && mounted) {
+      try {
+        // දත්ත JSON එකක් විදියට Decode කරගන්නවා
+        Map<String, dynamic> data = jsonDecode(result);
+
+        if (data['type'] == 'driver_identity') {
+          // Driver කෙනෙක් නම් විස්තර පෙන්නනවා
+          _showDriverDetailsDialog(data);
+        } else {
+          _showErrorDialog("Invalid QR Code: This is not a driver license.");
+        }
+      } catch (e) {
+        _showErrorDialog("Error reading QR Data.");
+      }
+    }
+  }
+
+  // --- [NEW] Driver විස්තර පෙන්වන Dialog එක ---
+// police_home_screen.dart එකේ මේ කොටස හොයාගෙන වෙනස් කරන්න
+
+  void _showDriverDetailsDialog(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Driver Details Found"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _detailRow("NIC:", data['nic'] ?? 'N/A'),
+            const SizedBox(height: 10),
+            _detailRow("License No:", data['license'] ?? 'N/A'),
+            const SizedBox(height: 20),
+            const Center(
+              child: Text(
+                "Verify this matches the physical license.",
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            )
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close"),
+          ),
+          ElevatedButton(
+            // --- වෙනස් කළ කොටස (UPDATED PART) ---
+            onPressed: () {
+              Navigator.pop(ctx); // 1. Dialog එක වහනවා
+              
+              // 2. New Fine Screen එකට License Number එක යවනවා
+              Navigator.push(
+                context, 
+                MaterialPageRoute(
+                  builder: (context) => NewFineScreen(
+                    scannedLicenseNumber: data['license'] // මෙතනින් තමයි Data එක යවන්නේ
+                  )
+                )
+              );
+            },
+            // -------------------------------------
+            child: const Text("Issue Fine"),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Row(
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(width: 10),
+        Text(value),
+      ],
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Error"),
+        content: Text(message),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))],
+      ),
+    );
+  }
+  // --- END OF NEW LOGIC ---
+
   ImageProvider _getProfileImage() {
     if (profileImageString != null && profileImageString!.isNotEmpty) {
       if (profileImageString!.startsWith('data:image')) {
@@ -183,10 +279,18 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                     mainAxisSpacing: 15,
                     children: [
                       _buildMenuCard(title: "New Fine", icon: Icons.note_add_outlined, color: Colors.redAccent, onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const NewFineScreen())); }),
-                      _buildMenuCard(title: "Check License", icon: Icons.qr_code_scanner, color: Colors.blue, onTap: () {}),
+                      
+                      // --- [UPDATED] Check License Button ---
+                      _buildMenuCard(
+                        title: "Check License", 
+                        icon: Icons.qr_code_scanner, 
+                        color: Colors.blue, 
+                        onTap: _handleQRScan // මෙතනින් තමයි Scanner එකට යන්නේ
+                      ),
+                      
                       _buildMenuCard(title: "Fine History", icon: Icons.history, color: Colors.orange, onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const FineHistoryScreen())); }),
                       
-                      // --- PROFILE BUTTON (WITH REFRESH) ---
+                      // --- PROFILE BUTTON ---
                       _buildMenuCard(
                         title: "Profile",
                         icon: Icons.person_outline,
@@ -194,7 +298,6 @@ class _PoliceHomeScreenState extends State<PoliceHomeScreen> {
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()))
                               .then((_) {
-                                // Profile එකෙන් ආපහු එනකොට Data ආයෙත් Load කරන්න කියනවා
                                 _loadUserData();
                               }); 
                         },

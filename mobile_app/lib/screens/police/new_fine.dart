@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dropdown_search/dropdown_search.dart';
+import 'package:geolocator/geolocator.dart'; 
+import 'package:geocoding/geocoding.dart'; 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
 import '../../services/fine_service.dart';
 
-// import '../../services/fine_service.dart'; 
 class NewFineScreen extends StatefulWidget {
-  const NewFineScreen({super.key});
+  final String? scannedLicenseNumber;
+  const NewFineScreen({super.key, this.scannedLicenseNumber});
 
   @override
   State<NewFineScreen> createState() => _NewFineScreenState();
@@ -14,267 +15,222 @@ class NewFineScreen extends StatefulWidget {
 
 class _NewFineScreenState extends State<NewFineScreen> {
   final _formKey = GlobalKey<FormState>();
-  final FineService _fineService = FineService();
   final _storage = const FlutterSecureStorage();
   
-  String? _currentBadgeNumber; 
-
-  // Text Controllers
-  final TextEditingController _licenseController = TextEditingController();
-  final TextEditingController _vehicleController = TextEditingController();
-  final TextEditingController _placeController = TextEditingController();
-
-  // Data Variables
-  List<dynamic> _offenseList = []; // Database eken ena list eka
-  bool _isLoading = true;          // Data load wena nisa
-  bool _isGettingLocation = false; // GPS load wena nisa
+  late TextEditingController _licenseController;
+  final TextEditingController _vehicleController = TextEditingController(); 
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
   
-  String? _selectedOffenseId;      
-  double _fineAmount = 0.0;        
+  // Offense Data තියාගන්න Variables
+  Map<String, dynamic>? _selectedOffenseData;
+  List<Map<String, dynamic>> _offenseList = [];
+
+  String? _officerBadgeNumber; 
+  bool _isSubmitting = false;
+  bool _isGettingLocation = false;
+  bool _isLoadingOffenses = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchOffenseData(); 
-    _loadOfficerData(); 
+    _licenseController = TextEditingController(text: widget.scannedLicenseNumber ?? "");
+    _loadInitialData();
   }
 
-  Future<void> _loadOfficerData() async {
-    String? badge = await _storage.read(key: 'badgeNumber');
-    if (mounted) {
-      setState(() {
-        _currentBadgeNumber = badge;
-      });
-    }
+  Future<void> _loadInitialData() async {
+    await _loadOfficerDetails();
+    await _getCurrentLocation();
+    await _fetchOffenses(); // Offenses ටික ගන්නවා
   }
 
-  
-  Future<void> _fetchOffenseData() async {
+  // Backend එකෙන් Offenses ලෝඩ් කිරීම
+  Future<void> _fetchOffenses() async {
     try {
-      final offenses = await _fineService.getOffenses();
+      final offenses = await FineService().getOffenses();
       if (mounted) {
         setState(() {
-          _offenseList = offenses;
-          _isLoading = false; 
+          _offenseList = List<Map<String, dynamic>>.from(offenses);
+          _isLoadingOffenses = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error loading data.'), backgroundColor: Colors.red),
-        );
-      }
+      print("Error loading offenses: $e");
+      if (mounted) setState(() => _isLoadingOffenses = false);
     }
+  }
+
+  Future<void> _loadOfficerDetails() async {
+    String? badge = await _storage.read(key: 'badgeNumber');
+    setState(() => _officerBadgeNumber = badge);
   }
 
   Future<void> _getCurrentLocation() async {
     setState(() => _isGettingLocation = true);
     try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) { _locationController.text = "Location Disabled"; return; }
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) throw 'Location permissions are denied';
+        if (permission == LocationPermission.denied) return;
       }
-      if (permission == LocationPermission.deniedForever) throw 'Location permissions are permanently denied';
-
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        String address = "${place.street}, ${place.subLocality}, ${place.locality}";
-        address = address.replaceAll(RegExp(r'^, | ,$'), '').replaceAll(', ,', ',');
-        if (address.trim().isEmpty) address = "Unknown Location";
-
-        setState(() {
-          _placeController.text = address; 
-        });
+        String address = "${place.street}, ${place.locality}";
+        if (address.startsWith(", ")) address = address.substring(2);
+        setState(() => _locationController.text = address);
+      } else {
+         setState(() => _locationController.text = "${position.latitude}, ${position.longitude}");
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error getting location: $e')));
-      }
+      setState(() => _locationController.text = "Error getting location");
     } finally {
-      if (mounted) setState(() => _isGettingLocation = false);
-    }
-  }
-
-  void _onOffenseChanged(String? offenseId) {
-    if (offenseId == null) return;
-    final selectedOffense = _offenseList.firstWhere(
-      (item) => item['_id'] == offenseId,
-      orElse: () => null,
-    );
-    if (selectedOffense != null) {
-      setState(() {
-        _selectedOffenseId = offenseId;
-        _fineAmount = double.tryParse(selectedOffense['amount'].toString()) ?? 0.0;
-      });
+      setState(() => _isGettingLocation = false);
     }
   }
 
   Future<void> _submitFine() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    if (!_formKey.currentState!.validate()) return;
+    
+    // Offense Select කරලා නැත්නම් Error එකක්
+    if (_selectedOffenseData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select an offense")));
+      return;
+    }
 
-      final selectedOffenseObj = _offenseList.firstWhere(
-         (element) => element['_id'] == _selectedOffenseId,
-         orElse: () => {},
-      );
+    // Officer Badge Number එක නැත්නම් (Logout වෙලා නම්)
+    if (_officerBadgeNumber == null) {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Officer ID missing. Please Logout & Login.")));
+       return;
+    }
 
+    setState(() => _isSubmitting = true);
+
+    try {
       Map<String, dynamic> fineData = {
         "licenseNumber": _licenseController.text,
         "vehicleNumber": _vehicleController.text,
-        "offenseId": _selectedOffenseId,
-        "offenseName": selectedOffenseObj['offenseName'] ?? 'Unknown', 
-        "amount": _fineAmount,
-        "place": _placeController.text,
-        "policeOfficerId": _currentBadgeNumber ?? "Unknown_Officer", 
+        
+        // --- වැදගත්ම කොටස: Backend එකට ID එක සහ Name එක යැවීම ---
+        "offenseId": _selectedOffenseData!['_id'], // Database ID එක
+        "offenseName": _selectedOffenseData!['offenseName'] ?? _selectedOffenseData!['name'], 
+        
+        "amount": double.parse(_amountController.text),
+        "place": _locationController.text.isEmpty ? "Unknown Location" : _locationController.text,
+        "policeOfficerId": _officerBadgeNumber,
+        "status": "Unpaid",
+        "date": DateTime.now().toIso8601String(),
       };
 
-      bool success = await _fineService.issueNewFine(fineData);
+      await FineService().issueFine(fineData);
 
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fine Issued Successfully!'), backgroundColor: Colors.green),
-        );
-        _licenseController.clear();
-        _vehicleController.clear();
-        _placeController.clear();
-        setState(() {
-          _selectedOffenseId = null;
-          _fineAmount = 0.0;
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to issue fine. Try again.'), backgroundColor: Colors.red),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fine Issued Successfully!"), backgroundColor: Colors.green));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      String errorMessage = e.toString().replaceAll("Exception:", "");
+      if (mounted) {
+        showDialog(
+          context: context, 
+          builder: (ctx) => AlertDialog(
+            title: const Text("Failed to Issue Fine", style: TextStyle(color: Colors.red)),
+            content: Text(errorMessage), 
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))],
+          )
         );
       }
+    } finally {
+      setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Issue New Fine", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF0D47A1),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: _isLoading 
-          ? const Center(child: CircularProgressIndicator()) 
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Driver & Vehicle Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                    const SizedBox(height: 15),
-                    TextFormField(
-                      controller: _licenseController,
-                      decoration: InputDecoration(
-                        labelText: "License Number",
-                        prefixIcon: const Icon(Icons.card_membership),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                      ),
-                      validator: (value) => value!.isEmpty ? 'Enter license number' : null,
-                    ),
-                    const SizedBox(height: 15),
-                    TextFormField(
-                      controller: _vehicleController,
-                      decoration: InputDecoration(
-                        labelText: "Vehicle Number",
-                        prefixIcon: const Icon(Icons.directions_car),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                      ),
-                      validator: (value) => value!.isEmpty ? 'Enter vehicle number' : null,
-                    ),
-                    const SizedBox(height: 25),
-                    const Text("Offense Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                    const SizedBox(height: 15),
-                    
-                    // ignore: deprecated_member_use
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: "Select Offense",
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                      ),
-                      initialValue: _selectedOffenseId,
-                      items: _offenseList.map<DropdownMenuItem<String>>((dynamic item) {
-                        return DropdownMenuItem<String>(
-                          value: item['_id'], 
-                          child: Text(item['offenseName'], overflow: TextOverflow.ellipsis), 
-                        );
-                      }).toList(),
-                      onChanged: _onOffenseChanged,
-                      validator: (value) => value == null ? 'Please select an offense' : null,
-                      isExpanded: true, 
-                    ),
+      appBar: AppBar(title: const Text("Issue New Fine"), backgroundColor: const Color(0xFF0D47A1), foregroundColor: Colors.white),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+              const SizedBox(height: 15),
+              TextFormField(
+                controller: _licenseController,
+                decoration: const InputDecoration(labelText: "License Number", border: OutlineInputBorder(), prefixIcon: Icon(Icons.card_membership)),
+                validator: (val) => val!.isEmpty ? "Required" : null,
+              ),
+              const SizedBox(height: 15),
+              TextFormField(
+                controller: _vehicleController,
+                decoration: const InputDecoration(labelText: "Vehicle Number", border: OutlineInputBorder(), prefixIcon: Icon(Icons.directions_car)),
+                validator: (val) => val!.isEmpty ? "Enter Vehicle Number" : null,
+              ),
+              const SizedBox(height: 25),
+              
+              const Text("Offense", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+              const SizedBox(height: 15),
 
-                    const SizedBox(height: 15),
-                    TextFormField(
-                      controller: _placeController,
-                      decoration: InputDecoration(
-                        labelText: "Place of Offense",
-                        prefixIcon: const Icon(Icons.location_on),
-                        suffixIcon: IconButton(
-                          icon: _isGettingLocation 
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.my_location, color: Colors.redAccent),
-                          onPressed: _getCurrentLocation, 
-                        ),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      validator: (value) => value!.isEmpty ? 'Enter location' : null,
+              // --- Dynamic Dropdown ---
+              _isLoadingOffenses 
+                ? const Center(child: CircularProgressIndicator()) 
+                : DropdownSearch<Map<String, dynamic>>(
+                    items: (filter, loadProps) => _offenseList,
+                    itemAsString: (item) => "${item['offenseName'] ?? item['name']} - ${item['amount']}",
+                    compareFn: (item1, item2) => item1['_id'] == item2['_id'],
+                    onChanged: (data) {
+                      setState(() {
+                        _selectedOffenseData = data;
+                        if (data != null) {
+                           _amountController.text = data['amount'].toString();
+                        }
+                      });
+                    },
+                    selectedItem: _selectedOffenseData,
+                    popupProps: const PopupProps.menu(showSearchBox: true),
+                    decoratorProps: const DropDownDecoratorProps(
+                      decoration: InputDecoration(labelText: "Select Offense", border: OutlineInputBorder(), prefixIcon: Icon(Icons.gavel)),
                     ),
-                    const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.red[50],
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Column(
-                        children: [
-                          const Text("Total Fine Amount", style: TextStyle(fontSize: 14, color: Colors.red)),
-                          const SizedBox(height: 5),
-                          Text("LKR ${_fineAmount.toStringAsFixed(2)}", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: _submitFine,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D47A1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: const Text("ISSUE FINE", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
+                  ),
+
+              const SizedBox(height: 15),
+              TextFormField(
+                controller: _amountController,
+                readOnly: true,
+                decoration: const InputDecoration(labelText: "Fine Amount (LKR)", border: OutlineInputBorder(), prefixIcon: Icon(Icons.money), filled: true, fillColor: Colors.white70),
+              ),
+              const SizedBox(height: 15),
+              TextFormField(
+                controller: _locationController,
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: "Place of Offense", border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.location_on),
+                  suffixIcon: IconButton(
+                    icon: _isGettingLocation ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.my_location, color: Colors.blue),
+                    onPressed: _getCurrentLocation,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isSubmitting ? null : _submitFine,
+                  icon: const Icon(Icons.send),
+                  label: _isSubmitting ? const CircularProgressIndicator(color: Colors.white) : const Text("ISSUE FINE"),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
