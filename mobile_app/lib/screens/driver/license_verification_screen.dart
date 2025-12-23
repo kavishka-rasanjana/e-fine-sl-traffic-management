@@ -164,7 +164,9 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     // Matching Logic (Y-Axis Alignment)
     for (TextElement catEl in foundCategoryElements) {
       double catY = catEl.boundingBox.center.dy;
-      double yThreshold = 30.0; // උස පරතරය
+      
+      // Y පරතරය (Threshold): කැමරාව ටිකක් ඇල වුනත් අල්ලගන්න (Pixel 30ක් වගේ)
+      double yThreshold = 30.0; 
 
       List<TextElement> matchingDates = foundDateElements.where((dateEl) {
         double dateY = dateEl.boundingBox.center.dy;
@@ -206,7 +208,7 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     }
   }
 
-  // --- 3. SUBMIT & VALIDATION ---
+  // --- 3. SUBMIT DATA (FIXED) ---
   Future<void> _submitData() async {
     String scannedLicense = _licenseNoController.text.toUpperCase().replaceAll(' ', '');
     String registeredLicense = widget.registeredLicenseNumber.toUpperCase().replaceAll(' ', '');
@@ -219,9 +221,9 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       return;
     }
 
-    // Validation 2: NIC Check
-    if (scannedNIC.isNotEmpty && scannedNIC != registeredNIC) {
-      _showDialog("Identity Mismatch", "License NIC ($scannedNIC) does not match your account ($registeredNIC).");
+    // Validation - මුලින්ම හිස්ද බලනවා, ඊට පස්සේ මැච් වෙනවද බලනවා
+    if (scannedNo.isEmpty || !scannedNo.contains(registeredNo)) {
+      _showDialog("Verification Failed", "License number ($scannedNo) does not match your registered number ($registeredNo).");
       return;
     }
 
@@ -243,17 +245,14 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Address එක එකතු කිරීම
-      String fullAddress = "${_street1Controller.text}, ${_street2Controller.text}";
-
-      await AuthService().verifyDriverLicense(
-        issueDate: _issueDateController.text,
-        expiryDate: _expiryDateController.text,
-        vehicleClasses: extractedClasses,
-        address: fullAddress, 
-        city: _cityController.text,
-        postalCode: _postalCodeController.text,
-      );
+      // මෙන්න නිවැරදි කරපු කොටස:
+      // දත්ත සියල්ලම තනි Map {} එකක් ඇතුලේ යැවිය යුතුයි.
+      await AuthService().verifyDriverLicense({
+        'licenseNumber': _licenseNoController.text,
+        'issueDate': _issueDateController.text.isEmpty ? _expiryDateController.text : _issueDateController.text,
+        'expiryDate': _expiryDateController.text,
+        'vehicleClasses': extractedClasses,
+      });
 
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(

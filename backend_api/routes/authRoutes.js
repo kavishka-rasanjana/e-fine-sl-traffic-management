@@ -1,20 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const { requestVerification, 
+
+const { 
+  requestVerification, 
   verifyOTP, 
   registerPolice,
   registerDriver,
   loginUser,
   forgotPassword,
   verifyResetOTP,
-  resetPassword
-} = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
-const { 
-  getMe 
+  resetPassword,
+  getMe,
+  verifyDriver,
+  updateProfileImage 
 } = require('../controllers/authController');
 
-const { verifyDriver } = require('../controllers/authController');
+
+const { protect } = require('../middleware/authMiddleware');
+
+// --- Routes ---
 
 router.post('/request-verification', requestVerification);
 router.post('/verify-otp', verifyOTP);      
@@ -25,8 +29,9 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-otp', verifyResetOTP);
 router.post('/reset-password', resetPassword);
 
+// Protected Routes (Login වෙලා ඉන්න ඕන)
 router.get('/me', protect, getMe);
-router.put('/verify-driver',protect, verifyDriver);
+router.put('/verify-driver', protect, verifyDriver);
+router.put('/update-profile-image', protect, updateProfileImage);
 
 module.exports = router;
-

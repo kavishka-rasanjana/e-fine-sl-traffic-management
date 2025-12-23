@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../services/auth_service.dart';
-import 'login_screen.dart'; 
+import 'package:image_picker/image_picker.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+import '../../services/auth_service.dart';
+import 'login_screen.dart';
 
 class PoliceSignupScreen extends StatefulWidget {
   const PoliceSignupScreen({super.key});
@@ -12,6 +15,7 @@ class PoliceSignupScreen extends StatefulWidget {
 
 class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
   final AuthService _authService = AuthService();
+  final ImagePicker _picker = ImagePicker();
   
   int _currentStep = 0;
   bool _isLoading = false;
@@ -31,8 +35,24 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
+  // Data Lists
   List<Map<String, dynamic>> stationList = [];
   String? selectedStationCode;
+  
+  // --- 1. MISSING VARIABLES FIXED ---
+  String? _selectedRank;
+  File? _imageFile;
+  String? _base64Image;
+
+  final List<String> _policeRanks = [
+    'Constable',
+    'Sergeant',
+    'Sub-Inspector (SI)',
+    'Inspector (IP)',
+    'Chief Inspector (CI)',
+    'OIC',
+    'ASP'
+  ];
 
   @override
   void initState() {
@@ -53,6 +73,29 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
     }
   }
 
+  // --- 2. IMAGE CAPTURE FUNCTION ---
+  Future<void> _captureImage() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera, 
+        imageQuality: 50, 
+        preferredCameraDevice: CameraDevice.front
+      );
+
+      if (photo != null) {
+        List<int> imageBytes = await File(photo.path).readAsBytes();
+        String base64String = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
+
+        setState(() {
+          _imageFile = File(photo.path);
+          _base64Image = base64String;
+        });
+      }
+    } catch (e) {
+      _showError("Camera Error: $e");
+    }
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -65,32 +108,26 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
     );
   }
 
-  // --- VALIDATION FUNCTIONS (අලුත් කොටස) ---
-
-  // 1. Password Validation
+  // --- VALIDATIONS ---
   bool _isPasswordStrong(String password) {
     if (password.length < 8) return false;
     if (!password.contains(RegExp(r'[0-9]'))) return false; 
     return true;
   }
 
-  // 2. Email Validation (Regex)
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
-  // 3. NIC Validation (Sri Lanka)
-  // Old 9 + v/x | New 12
   bool _isValidNIC(String nic) {
     return RegExp(r'^([0-9]{9}[vVxX]|[0-9]{12})$').hasMatch(nic);
   }
 
-  // 4. Phone Validation (Sri Lanka - 10 digits)
   bool _isValidPhone(String phone) {
     return RegExp(r'^0[0-9]{9}$').hasMatch(phone);
   }
 
-  // ------------------------------------------
+  // --- API CALLS ---
 
   Future<void> _requestOTP() async {
     if (_badgeController.text.isEmpty || selectedStationCode == null) {
@@ -131,7 +168,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
   }
 
   Future<void> _completeRegistration() async {
-   
+    // Basic Empty Checks
     if (_nameController.text.isEmpty || 
         _emailController.text.isEmpty || 
         _nicController.text.isEmpty || 
@@ -140,38 +177,44 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
       return;
     }
 
-    // 2. Email Validation Check
+    // Rank Check
+    if (_selectedRank == null) {
+      _showError("Please select your Rank / Position.");
+      return;
+    }
+
+    // Image Check
+    if (_base64Image == null) {
+      _showError("Profile Picture is mandatory! Please tap the camera icon.");
+      return;
+    }
+
+    // Validations
     if (!_isValidEmail(_emailController.text)) {
       _showError("Please enter a valid Email Address.");
       return;
     }
-
-    // 3. NIC Validation Check
     if (!_isValidNIC(_nicController.text)) {
-      _showError("Invalid NIC Number (Format: 123456789V or 199912345678)");
+      _showError("Invalid NIC Number");
       return;
     }
-
-    // 4. Phone Validation Check
     if (!_isValidPhone(_phoneController.text)) {
-      _showError("Invalid Phone Number (Must be 10 digits, e.g., 0712345678)");
+      _showError("Invalid Phone Number");
       return;
     }
-
-    // 5. Password Validation
     if (!_isPasswordStrong(_passwordController.text)) {
-      _showError("Password must be at least 8 characters and contain a number.");
+      _showError("Password too weak.");
       return;
     }
-
-    // 6. Password Match Check
     if (_passwordController.text != _confirmPasswordController.text) {
       _showError("Passwords do not match!");
       return;
     }
 
     setState(() => _isLoading = true);
+    
     try {
+      // Sending All Data
       await _authService.registerPolice({
         'name': _nameController.text,
         'badgeNumber': _badgeController.text,
@@ -179,15 +222,14 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
         'nic': _nicController.text,
         'phone': _phoneController.text,
         'password': _passwordController.text,
-        'station': selectedStationCode,
-        'otp': _otpController.text
+        'station': selectedStationCode, 
+        'otp': _otpController.text,
+        'position': _selectedRank,
+        'profileImage': _base64Image,
       });
       
-     
       if (mounted) {
         _showSuccess("Registration Successful! Please Login.");
-        
-   
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (Route<dynamic> route) => false,
@@ -205,13 +247,14 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Police Registration"),
-        backgroundColor: Colors.blue[900],
+        backgroundColor: const Color(0xFF0D47A1), 
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
+            
             // STEP 1: Request OTP
             if (_currentStep == 0) ...[
               const Text("Step 1: Verification Request", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
@@ -237,7 +280,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
                   filterFn: (item, filter) => item['name'].toLowerCase().contains(filter.toLowerCase()),
                 ),
               const SizedBox(height: 30),
-              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _requestOTP, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[900], foregroundColor: Colors.white), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Request Verification Code"))),
+              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _requestOTP, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D47A1), foregroundColor: Colors.white), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Request Verification Code"))),
             ],
 
             // STEP 2: Verify OTP
@@ -251,28 +294,85 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
 
             // STEP 3: Complete Profile
             if (_currentStep == 2) ...[
-              const Icon(Icons.security, size: 50, color: Colors.blue),
-              const Text("Step 3: Secure Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Step 3: Officer Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
               const SizedBox(height: 20),
               
+              // Camera Capture
+              Center(
+                child: GestureDetector(
+                  onTap: _captureImage,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 60,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: _imageFile != null ? FileImage(_imageFile!) : null,
+                        child: _imageFile == null
+                            ? const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.camera_alt, size: 40, color: Colors.grey),
+                                  Text("Tap to Photo", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                ],
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                          child: const Icon(Icons.add_a_photo, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text("* Photo is Mandatory", style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+              const SizedBox(height: 20),
+
               TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Full Name", prefixIcon: Icon(Icons.person), border: OutlineInputBorder())),
               const SizedBox(height: 15),
 
-              TextField(controller: _nicController, decoration: const InputDecoration(labelText: "NIC Number", prefixIcon: Icon(Icons.credit_card), border: OutlineInputBorder(), helperText: "Ex: 199012345678 or 901234567V")),
+              // Rank Dropdown (Fixed: initialValue භාවිතා කිරීම)
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: "Select Rank / Position",
+                  prefixIcon: Icon(Icons.security),
+                  border: OutlineInputBorder(),
+                ),
+                initialValue: _selectedRank,
+                items: _policeRanks.map((String rank) {
+                  return DropdownMenuItem<String>(
+                    value: rank,
+                    child: Text(rank),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() {
+                    _selectedRank = newValue;
+                  });
+                },
+              ),
               const SizedBox(height: 15),
 
-              TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number", prefixIcon: Icon(Icons.phone), border: OutlineInputBorder(), helperText: "Ex: 0712345678")),
+              TextField(controller: _nicController, decoration: const InputDecoration(labelText: "NIC Number", prefixIcon: Icon(Icons.credit_card), border: OutlineInputBorder())),
+              const SizedBox(height: 15),
+
+              TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number", prefixIcon: Icon(Icons.phone), border: OutlineInputBorder())),
               const SizedBox(height: 15),
               
-              TextField(controller: _emailController, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: "Personal Email Address", prefixIcon: Icon(Icons.email), border: OutlineInputBorder())),
+              TextField(controller: _emailController, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: "Email Address", prefixIcon: Icon(Icons.email), border: OutlineInputBorder())),
               const SizedBox(height: 15),
               
               TextField(
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: "Create Strong Password", prefixIcon: const Icon(Icons.lock), border: const OutlineInputBorder(),
-                  helperText: "8+ chars with at least one number",
+                  labelText: "Create Password", prefixIcon: const Icon(Icons.lock), border: const OutlineInputBorder(),
                   suffixIcon: IconButton(icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off), onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible)),
                 ),
               ),
@@ -288,7 +388,7 @@ class _PoliceSignupScreenState extends State<PoliceSignupScreen> {
               ),
               const SizedBox(height: 30),
               
-              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _completeRegistration, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[900], foregroundColor: Colors.white), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Complete Registration"))),
+              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _completeRegistration, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D47A1), foregroundColor: Colors.white), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("COMPLETE REGISTRATION"))),
             ],
           ],
         ),
