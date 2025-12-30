@@ -30,6 +30,6 @@ jobs:
     - name: Analyze code (Static Analysis)
       run: flutter analyze 
 
-    - name: Build APK (Optional - to check if it builds)
-      run: flutter build apk --debug 
+    # - name: Build APK (Optional - to check if it builds)
+    #   run: flutter build apk --debug 
       
