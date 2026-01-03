@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 // Import all required functions from fineController only (avoid duplicate declarations)
-const { 
-    getOffenses, 
-    addOffense, 
-    issueFine, 
-    getFineHistory 
+const {
+    getOffenses,
+    addOffense,
+    issueFine,
+    getFineHistory,
+    getDriverPendingFines
 } = require('../controllers/fineController');
 
 // URL: /api/fines/offenses (දඩ වර්ග ටික ගන්න)
@@ -21,5 +22,8 @@ router.post('/issue', issueFine);
 
 // URL: /api/fines/history (ගහපු දඩ වල හිස්ට්‍රි එක ගන්න)
 router.get('/history', getFineHistory);
+
+// URL: /api/fines/pending (Driver ගේ Pending දඩ ගන්න)
+router.get('/pending', getDriverPendingFines);
 
 module.exports = router;
