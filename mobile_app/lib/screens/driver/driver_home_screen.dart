@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:mobile_app/screens/driver/profile_screen.dart';
 import 'package:mobile_app/services/auth_service.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-import '../auth/login_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mobile_app/services/fine_service.dart';
 import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:mobile_app/screens/driver/pay_fine_screen.dart';
 import 'package:mobile_app/screens/driver/payment_history_screen.dart';
+import 'package:mobile_app/screens/settings_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -79,18 +79,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
 
 
-  // Logout Function
-  Future<void> _logout() async {
-    _timer?.cancel(); // Cancel timer on logout
-    await _storage.deleteAll();
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context, 
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false 
-      );
-    }
-  }
+
 
  // --- PROFILE DETAILS FUNCTION ---
 
@@ -148,7 +137,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(color: Colors.black.withAlpha((0.05 * 255).toInt()), blurRadius: 5, offset: const Offset(0, 2)),
@@ -182,9 +171,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       key: _scaffoldKey, // Add Key
       onEndDrawerChanged: _handleDrawerChange, // Handle Read/Unread
       endDrawer: _buildNotificationDrawer(), // Notification Side Panel
-      backgroundColor: Colors.grey[100], 
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
       appBar: AppBar(
-        backgroundColor: Colors.green[700], 
+        // backgroundColor uses Theme
         elevation: 0,
         title: const Text("e-Fine SL", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
@@ -232,8 +221,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ),
 
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout, 
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () {
+               Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+            }, 
           ),
         ],
       ),
@@ -244,7 +235,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             Container(
               padding: const EdgeInsets.only(left: 20, right: 20, bottom: 30),
               decoration: BoxDecoration(
-                color: Colors.green[700],
+                color: Theme.of(context).primaryColor,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(30),
                   bottomRight: Radius.circular(30),

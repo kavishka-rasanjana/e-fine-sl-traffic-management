@@ -21,7 +21,6 @@ class ProfileScreen extends StatelessWidget {
     bool isActive = status == "Active";
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Text("my_profile".tr()), 
         backgroundColor: Colors.green[700],
@@ -46,7 +45,7 @@ class ProfileScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.only(bottom: 30),
               decoration: BoxDecoration(
-                color: Colors.green[700],
+                color: Theme.of(context).primaryColor,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(30),
                   bottomRight: Radius.circular(30),
@@ -116,14 +115,15 @@ class ProfileScreen extends StatelessWidget {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               padding: const EdgeInsets.all(20),
-              decoration: _boxDecoration(),
+              decoration: _boxDecoration(context),
               child: Column(
                 children: [
-                  _buildProfileRow(Icons.credit_card, "nic_label".tr(), userData['nic']),
+                  _buildProfileRow(context, Icons.credit_card, "nic_label".tr(), userData['nic']),
                   const Divider(),
-                  _buildProfileRow(Icons.phone, "mobile_label".tr(), userData['phone']),
+                  _buildProfileRow(context, Icons.phone, "mobile_label".tr(), userData['phone']),
                   const Divider(),
                   _buildProfileRow(
+                    context,
                     Icons.warning_amber, 
                     "demerits_label".tr(), 
                     "points_display".tr(args: [userData['demeritPoints'].toString()]), 
@@ -139,7 +139,7 @@ class ProfileScreen extends StatelessWidget {
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 padding: const EdgeInsets.all(20),
-                decoration: _boxDecoration(),
+                decoration: _boxDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -171,8 +171,8 @@ class ProfileScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildDateColumn("issue_date".tr(), issueDate),
-                        _buildDateColumn("expiry_date".tr(), expiryDate, isExpiry: true),
+                        _buildDateColumn(context, "issue_date".tr(), issueDate),
+                        _buildDateColumn(context, "expiry_date".tr(), expiryDate, isExpiry: true),
                       ],
                     ),
                     const Divider(height: 30),
@@ -201,7 +201,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     Text(
                       "${"postal".tr()}: ${userData['postalCode'] ?? ''}",
-                      style: const TextStyle(color: Colors.black54),
+                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
                     ),
                   ],
                 ),
@@ -241,12 +241,14 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             SizedBox(
-              height: 200,
-              width: 200,
+              height: 220,
+              width: 220,
               child: QrImageView(
                 data: qrString,
                 version: QrVersions.auto,
                 size: 200.0,
+                backgroundColor: Colors.white, // Ensure white background
+                padding: const EdgeInsets.all(10), // Padding inside white area
               ),
             ),
             const SizedBox(height: 20),
@@ -268,9 +270,9 @@ class ProfileScreen extends StatelessWidget {
   }
 
   // --- UI HELPERS ---
-  BoxDecoration _boxDecoration() {
+  BoxDecoration _boxDecoration(BuildContext context) {
     return BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(15),
       boxShadow: [
         BoxShadow(
@@ -295,7 +297,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDateColumn(String label, String date, {bool isExpiry = false}) {
+  Widget _buildDateColumn(BuildContext context, String label, String date, {bool isExpiry = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -306,7 +308,7 @@ class ProfileScreen extends StatelessWidget {
           style: TextStyle(
             fontWeight: FontWeight.bold, 
             fontSize: 15,
-            color: isExpiry ? Colors.redAccent : Colors.black87
+            color: isExpiry ? Colors.redAccent : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
           ),
         ),
       ],
@@ -328,7 +330,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileRow(IconData icon, String label, String value, {bool isHighlight = false}) {
+  Widget _buildProfileRow(BuildContext context, IconData icon, String label, String value, {bool isHighlight = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -351,7 +353,7 @@ class ProfileScreen extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.bold, 
                   fontSize: 15,
-                  color: isHighlight ? Colors.orange[800] : Colors.black87,
+                  color: isHighlight ? Colors.orange[800] : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
                 ),
               ),
             ],

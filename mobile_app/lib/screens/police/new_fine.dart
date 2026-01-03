@@ -22,7 +22,7 @@ class _NewFineScreenState extends State<NewFineScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   late TextEditingController _dateController;
-  DateTime _selectedDate = DateTime.now();
+  final DateTime _selectedDate = DateTime.now();
 
   // Offense Data තියාගන්න Variables
   Map<String, dynamic>? _selectedOffenseData;
