@@ -9,7 +9,7 @@ const {
     getDriverPendingFines,
     payFine,
     getDriverPaidHistory
-} = require('../controllers/FineController');
+} = require('../controllers/fineController');
 
 // URL: /api/fines/offenses (දඩ වර්ග ටික ගන්න)
 router.get('/offenses', getOffenses);
