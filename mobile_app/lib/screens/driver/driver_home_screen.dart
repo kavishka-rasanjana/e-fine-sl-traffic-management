@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mobile_app/services/fine_service.dart';
 import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:mobile_app/screens/driver/pay_fine_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -378,7 +379,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 crossAxisSpacing: 15,
                 mainAxisSpacing: 15,
                 children: [
-                  _buildActionCard(Icons.payment, "pay_fines".tr(), Colors.orange, () { }),
+                  _buildActionCard(Icons.payment, "pay_fines".tr(), Colors.orange, () {
+                      // Open drawer to select fine to pay
+                      _scaffoldKey.currentState?.openEndDrawer();
+                  }),
                   _buildActionCard(Icons.history, "history".tr(), Colors.blue, () { }),
                   _buildActionCard(Icons.wallet, "wallet".tr(), Colors.purple, () { }),
                   _buildActionCard(Icons.report_problem, "report".tr(), Colors.red, () { }),
@@ -514,7 +518,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                             ],
                           ),
                           trailing: ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                               // Navigate to PayFineScreen
+                               Navigator.push(
+                                 context, 
+                                 MaterialPageRoute(builder: (context) => PayFineScreen(fine: fine))
+                               );
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: Colors.red,

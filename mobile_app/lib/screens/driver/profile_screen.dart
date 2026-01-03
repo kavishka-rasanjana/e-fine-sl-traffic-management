@@ -36,6 +36,7 @@ class ProfileScreen extends StatelessWidget {
             },
           )
         ],
+      centerTitle: true,
       ),
       body: SingleChildScrollView(
         child: Column(

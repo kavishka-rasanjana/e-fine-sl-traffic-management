@@ -4,7 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class FineService {
   // ඔයාගේ IP එක (වෙනස් වුනොත් මෙතන මාරු කරන්න)
-  static const String baseUrl = 'http://192.168.8.114:5000/api';
+  // static const String baseUrl = 'http://192.168.8.114:5000/api';
+  static const String baseUrl = 'https://e-fine-sl-traffic-management-1.onrender.com/api';
   final _storage = const FlutterSecureStorage();
 
   // ----------------------------------------------------------------

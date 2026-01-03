@@ -4,8 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthService {
   // Emulator: 10.0.2.2 | Real Device: Your PC IP Address
-  final String baseUrl = "http://192.168.8.114:5000/api"; 
-  
+  // final String baseUrl = "http://192.168.8.114:5000/api"; 
+   final String baseUrl = "https://e-fine-sl-traffic-management-1.onrender.com/api"; 
   final _storage = const FlutterSecureStorage();
 
   // -------------------------
