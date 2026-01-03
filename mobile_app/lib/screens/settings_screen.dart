@@ -106,7 +106,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: const Icon(Icons.logout, color: Colors.red),
             ),
             title: const Text("Logout", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
