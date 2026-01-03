@@ -4,6 +4,8 @@ import 'package:mobile_app/services/auth_service.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import '../auth/login_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:mobile_app/services/fine_service.dart';
+import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 
 class DriverHomeScreen extends StatefulWidget {
@@ -29,12 +31,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     return 'greeting_evening';
   }
 
-  bool hasPendingFines = true;
+  bool hasPendingFines = false;
+  int _fineCount = 0;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadReadFines();
+    // Initialize without notification
+    FineService().getDriverPendingFines().then((fines) {
+       if(mounted) {
+         setState(() {
+           _fineCount = fines.length;
+           hasPendingFines = fines.isNotEmpty;
+           _notifications = fines;
+         });
+       }
+    });
+
+    // Poll every 5 seconds (simulating realtime)
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _checkPendingFines();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   // --- Session Management Part ---
@@ -47,8 +73,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     }
   }
 
+
+
+
+
   // Logout Function
   Future<void> _logout() async {
+    _timer?.cancel(); // Cancel timer on logout
     await _storage.deleteAll();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
@@ -140,23 +171,28 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     );
   }
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  List<Map<String, dynamic>> _notifications = []; // Local storage for notifications
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey, // Add Key
+      onEndDrawerChanged: _handleDrawerChange, // Handle Read/Unread
+      endDrawer: _buildNotificationDrawer(), // Notification Side Panel
       backgroundColor: Colors.grey[100], 
       appBar: AppBar(
         backgroundColor: Colors.green[700], 
         elevation: 0,
         title: const Text("e-Fine SL", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
-
           // --- LANGUAGE CHANGE BUTTON 
-        TextButton(
+          TextButton(
             onPressed: () {
               if (context.locale.languageCode == 'en') {
-                context.setLocale(const Locale('si')); // (Locale('si'))
+                context.setLocale(const Locale('si'));
               } else {
-                context.setLocale(const Locale('en')); //(Locale('en'))
+                context.setLocale(const Locale('en'));
               }
             },
             child: Text(
@@ -164,12 +200,35 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
-          // ---------------------------------------------
-
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () {},
+          
+          // Notification Icon
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 28),
+                onPressed: () {
+                  _scaffoldKey.currentState?.openEndDrawer(); // Open Side Drawer
+                },
+              ),
+              if (_fineCount > 0)
+                Positioned(
+                  right: 12,
+                  top: 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Text(
+                      "!",
+                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                )
+            ],
           ),
+
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: _logout, 
@@ -202,7 +261,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     children: [
                       // --- TRANSLATED TEXT ---
                       Text(
-                        _getGreetingKey().tr(), // .tr() change according to language 
+                        _getGreetingKey().tr(), 
                         style: const TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                       Text(
@@ -220,39 +279,39 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             if (hasPendingFines)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50], 
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.red.withAlpha((0.5 * 255).toInt())),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "unpaid_title".tr(),
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 16),
-                            ),
-                            Text(
-                              "unpaid_msg".tr(),
-                              style: const TextStyle(color: Colors.black54, fontSize: 12),
-                            ),
-                          ],
+                child: InkWell(
+                  onTap: () {
+                     _scaffoldKey.currentState?.openEndDrawer(); // Tap to open notifications
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50], 
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.red.withAlpha((0.5 * 255).toInt())),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "unpaid_title".tr(),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 16),
+                              ),
+                              Text(
+                                "unpaid_msg".tr(),
+                                style: const TextStyle(color: Colors.black54, fontSize: 12),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_forward, color: Colors.red),
-                        onPressed: () {
-                          // to send Pay Fines Screen
-                        },
-                      )
-                    ],
+                        const Icon(Icons.arrow_forward_ios, color: Colors.red, size: 16)
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -347,6 +406,229 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           }
         },
       ),
+    );
+  }
+
+  // --- Professional Notification Drawer ---
+  Widget _buildNotificationDrawer() {
+    return Drawer(
+      width: MediaQuery.of(context).size.width * 0.85, // 85% width
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(0), bottomLeft: Radius.circular(0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+            color: Colors.green[800],
+            child: Row(
+              children: [
+                const Icon(Icons.notifications_active, color: Colors.white),
+                const SizedBox(width: 10),
+                const Text(
+                  "Notifications",
+                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                )
+              ],
+            ),
+          ),
+          
+          // List
+          Expanded(
+            child: _notifications.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.notifications_off_outlined, size: 80, color: Colors.grey[300]),
+                        const SizedBox(height: 10),
+                        Text("No new notifications", style: TextStyle(color: Colors.grey[500])),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(10),
+                    itemCount: _notifications.length,
+                    itemBuilder: (context, index) {
+                      final fine = _notifications[index];
+                      final String fineId = fine['_id'] ?? "";
+                      final bool isRead = _readFineIds.contains(fineId);
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: isRead ? Colors.white : Colors.red[50], // Highlight unread
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(color: Colors.grey.withAlpha(26), spreadRadius: 1, blurRadius: 5)
+                          ],
+                          border: Border(left: BorderSide(color: isRead ? Colors.grey[300]! : Colors.red, width: 4))
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  fine['offenseName'] ?? 'Traffic Fine',
+                                  style: TextStyle(
+                                    fontWeight: isRead ? FontWeight.normal : FontWeight.bold, // Bold unread
+                                    fontSize: 16
+                                  ),
+                                ),
+                              ),
+                              if (!isRead)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                                  child: const Text("NEW", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                )
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 5),
+                              Text("Amount: LKR ${fine['amount']}", style: const TextStyle(color: Colors.black87)),
+                              const SizedBox(height: 5),
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    (fine['createdAt'] != null) 
+                                    ? fine['createdAt'].toString().substring(0, 10) 
+                                    : "Just now",
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                          trailing: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.red,
+                              elevation: 0,
+                              side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                            ),
+                            child: const Text("Pay"),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Set<String> _readFineIds = {};
+
+  Future<void> _loadReadFines() async {
+    String? storedIds = await _storage.read(key: 'read_fines');
+    if (storedIds != null && storedIds.isNotEmpty) {
+      setState(() {
+        _readFineIds = storedIds.split(',').toSet();
+      });
+    }
+  }
+
+  void _handleDrawerChange(bool isOpened) {
+     if (!isOpened) { // When Drawer Closes
+        // Mark all current fines as read
+        setState(() {
+           for (var fine in _notifications) {
+              if (fine['_id'] != null) {
+                _readFineIds.add(fine['_id']);
+              }
+           }
+           _fineCount = 0; // Clear badge
+        });
+        // Save to storage
+        _storage.write(key: 'read_fines', value: _readFineIds.join(','));
+     }
+  }
+
+  // Check for new fines
+  Future<void> _checkPendingFines() async {
+      try {
+        final fines = await FineService().getDriverPendingFines();
+        
+        // Calculate Badge Count (Unread Only)
+        int unreadCount = 0;
+        for (var fine in fines) {
+           if (fine['_id'] != null && !_readFineIds.contains(fine['_id'])) {
+              unreadCount++;
+           }
+        }
+
+        if (mounted) {
+          // If we have a new fine (count increased from previous known unread)
+          // Note: Logic allows checking if totally new fines arrived
+          // For simplicity, if unreadCount > _fineCount (previous unread), notify.
+          if (unreadCount > _fineCount && _fineCount > 0) {
+             _showProfessionalSnackbar();
+          }
+          
+          setState(() {
+            hasPendingFines = fines.isNotEmpty;
+            _fineCount = unreadCount; // Badge shows unread count
+            _notifications = fines; 
+          });
+        }
+      } catch (e) {
+        // Silent error
+      }
+  }
+
+  // Modern Top Snackbar implementation (simulated with standard SnackBar but styled)
+  void _showProfessionalSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.campaign, color: Colors.white),
+            const SizedBox(width: 15),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("New Fine Received", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text("Check your notification drawer.", style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                _scaffoldKey.currentState?.openEndDrawer();
+              },
+              child: const Text("VIEW", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+            )
+          ],
+        ),
+        backgroundColor: Colors.grey[900],
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).size.height - 150, // Force it to TOP area roughly
+          left: 10,
+          right: 10
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 5),
+      )
     );
   }
 }

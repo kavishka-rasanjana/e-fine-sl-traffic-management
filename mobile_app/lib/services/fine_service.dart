@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class FineService {
   // ඔයාගේ IP එක (වෙනස් වුනොත් මෙතන මාරු කරන්න)
-  static const String baseUrl = 'http://10.159.39.6:5000/api';
+  static const String baseUrl = 'http://192.168.8.114:5000/api';
   final _storage = const FlutterSecureStorage();
 
   // ----------------------------------------------------------------
@@ -101,6 +101,63 @@ class FineService {
       }
     } catch (e) {
       throw Exception('Connection Error: $e');
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // 4. Get Pending Fines (Driver)
+  // ----------------------------------------------------------------
+  Future<List<Map<String, dynamic>>> getDriverPendingFines() async {
+     try {
+      String? token = await _storage.read(key: 'token');
+      // Driver Login වෙනකොට licenseNumber එක save කරගන්න ඕනේ AuthService එකෙන්.
+      // එහෙම නැත්නම් මෙතනදි ගන්න බෑ.
+      // දැනට අපි උපකල්පනය කරමු AuthService එකෙන් ඒක save කරලා තියෙනවා කියලා.
+      // * Hint: Login වෙනකොට licenseNumber එකත් storage එකට දාන්න.
+      
+      // නමුත් දැනට user object එකේ තියෙන විස්තර ගන්න පුලුවන් නම් හොදයි.
+      // අපි AuthService එකේ getUserProfile() වලින් ගන්නත් පුලුවන්. 
+      // නමුත් ලේසිම දේ තමයි Login එකේදි save කරගන්න එක.
+      
+      // අපි මෙතනදි user profile එක අරගෙන බලමු.
+      // Final authService definition removed as it was unused.
+      // හොදම දේ තමයි Login එකේදි save කරපු එක ගන්න එක.
+      
+      // * Correction in AuthService: Save License Number on Login
+      
+      // Let's assume we saved it as 'licenseNumber'
+      String? licenseNumber = await _storage.read(key: 'licenseNumber'); // * Make sure to save this in AuthService login!
+      
+       if (token == null ) {
+         return [];
+       }
+       
+       if(licenseNumber == null) {
+          // If not in storage, fetch profile
+           // This is a fail-safe
+           return [];
+       }
+
+      final uri = Uri.parse('$baseUrl/fines/pending').replace(queryParameters: {
+        'licenseNumber': licenseNumber,
+      });
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
     }
   }
 }

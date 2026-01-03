@@ -1,88 +1,60 @@
-# How to Run the Mobile App
-
-To run the E-Fine SL Driver Mobile Application:
-
-1. Make sure you have Flutter installed. If not, follow the official guide: https://docs.flutter.dev/get-started/install
-2. Connect your Android device (or use an emulator) and enable USB debugging.
-3. Open a terminal in the `mobile_app` directory.
-4. Install dependencies:
-  ```bash
-  flutter pub get
-  ```
-5. Run the app:
-  ```bash
-  flutter run
-  ```
-6. For multi-language support, ensure the `assets/translations/en.json` and `assets/translations/si.json` files are present.
-
-**Note:**
-- If connecting to a backend API, update the base URL in `lib/services/auth_service.dart` as needed.
-- For iOS, additional setup may be required (see Flutter docs).
-
 # E-Fine SL Driver Mobile Application
+
+## How to Run
+1. Ensure Flutter is installed: [Install Guide](https://docs.flutter.dev/get-started/install)
+2. Connect a device or use an emulator.
+3. Navigate to `mobile_app` directory:
+   ```bash
+   cd mobile_app
+   flutter pub get
+   flutter run
+   ```
+4. **Note:** Check `lib/services/fine_service.dart` and `auth_service.dart` to ensure the `baseUrl` matches your local backend IP (e.g., `http://192.168.x.x:5000/api`).
 
 ## Recent Updates & Features Implemented
 
-### Smart License Scanning (OCR)
+### 🔔 Real-time Notification System (New!)
+- **Professional Notification Drawer:** A sleek side-drawer accessed via the bell icon or by clicking the 'Pending Fine Alert'.
+- **Smart Read/Unread Logic:**
+  - Unread fines are highlighted with a **Red 'NEW' Badge**.
+  - Opening the drawer views the fines.
+  - Closing the drawer automatically marks them as 'Read' and updates the notification badge count.
+  - Read status is persisted locally, so it remembers what you've seen even after restarting the app.
+- **Top/Floating Snackbar:** A non-intrusive, premium-style alert appears at the top of the screen when a new fine is detected in real-time.
+- **Silent Initialization:** The app intelligently checks for fines on startup without annoying popups, only alerting for *new* fines during the session.
+
+### 🚗 Dynamic Driver Dashboard
+- **Real-time Demerit Point Meter:** Visualizes current driver points and status (Excellent/Warning/Risk).
+- **Pending Fine Alert:** A conditional red warning box that appears on the home screen only when there are unpaid fines.
+- **Dynamic Greetings:** Welcomes the driver based on the time of day.
+
+### 📷 Smart License Scanning (OCR)
 - Integrated Google ML Kit for scanning driving licenses.
-- Automatically detects Issue/Expiry dates and Vehicle Classes using advanced geometric row matching logic.
-- Includes a validation step to ensure the scanned license matches the registered user's license number.
+- Automatically captures Issue Date, Expiry Date, and Vehicle Classes.
+- Validates scanned data against the registered user's license number.
 
-### Dynamic Driver Dashboard
-- Implemented a comprehensive 'Driver Home Screen' featuring:
-  - Real-time 'Demerit Point Meter' (using percent_indicator).
-  - Dynamic greeting system based on the time of day.
-  - 'Unpaid Fines Alert' system for immediate notifications.
+### 🔐 Secure Authentication & Profile
+- Role-based login (Driver/Police).
+- Secure storage of tokens and driver license numbers.
+- Detailed Profile Screen displaying personal info and vehicle classes.
 
-### Digital Profile System
-- Developed a detailed Profile Screen displaying:
-  - Personal information.
-  - License status (Active/Suspended).
-  - Vehicle classes in a digital card format.
-- Data is securely fetched from the backend API (`/me`).
+### 🌍 Localization
+- Full English & Sinhala support (`easy_localization`).
+- One-tap language toggle in the AppBar.
 
-### Localization (Multi-language)
-- Full support for English and Sinhala languages using easy_localization.
-- Dynamic translation for API data fields, including status messages.
+## Upcoming Features (Roadmap)
+- **💳 Online Fine Payment:** Implementing secure payments using **PayHere Sandbox**.
+- **📜 Payment History:** View past receipts and payment status.
+- **📨 SMS Alerts:** Integration for SMS notifications.
 
-### Secure Authentication
-- Driver Registration with rigorous validation (NIC, Phone, Strong Password).
-- Role-Based Login system for enhanced security.
-
-## Updated Folder Structure
-
+## Folder Structure
 ```
 📦 lib/
- ├── main.dart                # App entry point
- ├── config/                  # App-wide configuration (themes, constants)
- ├── models/                  # Data models (Driver, Police, Offense, etc.)
- ├── providers/               # State management (Provider classes)
  ├── screens/
- │    ├── auth/               # Authentication screens
- │    │    ├── driver_signup_screen.dart
- │    │    ├── forgot_password_screen.dart
- │    │    ├── login_screen.dart
- │    │    ├── police_signup_screen.dart
- │    │    └── user_selection_screen.dart
- │    ├── driver/             # Driver features
- │    │    ├── driver_home_screen.dart
- │    │    ├── profile_screen.dart
- │    │    └── license_verification_screen.dart
- │    ├── police/             # Police features
- │    │    └── police_home_screen.dart
- │    └── splash/             # Splash and onboarding
- │         └── splash_screen.dart
- ├── services/                # API and business logic
- │    └── auth_service.dart
- └── widgets/                 # Reusable UI components
-      ├── custom_button.dart
-      └── custom_textfield.dart
-
-🎨 assets/
- ├── icons/
- │    └── app_icon/           # App icons
- └── translations/            # Localization files
-      ├── en.json
-      └── si.json
+ │    ├── driver/             # Driver specific screens (Home, Profile)
+ │    ├── police/             # Police specific screens
+ │    └── auth/               # Login & Registration
+ ├── services/                # API Logic (AuthService, FineService)
+ ├── widgets/                 # Reusable UI components
+ └── assets/                  # Icons & Translations (en.json, si.json)
 ```
-> This creative structure highlights the modular design and separation of concerns, making the codebase easy to navigate and maintain.

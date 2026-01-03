@@ -2,7 +2,7 @@ const Station = require('../models/stationModel');
 const Verification = require('../models/verificationModel');
 const sendEmail = require('../utils/sendEmail');
 const bcrypt = require('bcryptjs');
-const Police = require('../models/policeModel'); 
+const Police = require('../models/policeModel');
 const generateToken = require('../utils/generateToken');
 const Driver = require('../models/driverModel');
 
@@ -18,15 +18,15 @@ const requestVerification = async (req, res) => {
     if (!station) {
       return res.status(404).json({ message: 'Police Station not found' });
     }
-   
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     await Verification.deleteMany({ badgeNumber });
-    
+
     await Verification.create({
       badgeNumber,
       stationCode,
-      otp, 
+      otp,
     });
 
     const htmlMessage = `
@@ -66,8 +66,8 @@ const requestVerification = async (req, res) => {
     await sendEmail({
       email: station.officialEmail,
       subject: 'Action Required: Officer Verification Code',
-      message: `Your Verification Code is: ${otp}`, 
-      html: htmlMessage, 
+      message: `Your Verification Code is: ${otp}`,
+      html: htmlMessage,
     });
 
     res.status(200).json({ success: true, message: `Verification code sent to OIC of ${station.name}` });
@@ -120,13 +120,13 @@ const registerPolice = async (req, res) => {
       name,
       badgeNumber,
       email,
-      nic,    
-      phone,  
+      nic,
+      phone,
       password: hashedPassword,
       station,
-      policeStation: station, 
-      position: position,     
-      profileImage: profileImage 
+      policeStation: station,
+      position: position,
+      profileImage: profileImage
     });
 
     await Verification.deleteMany({ badgeNumber });
@@ -144,7 +144,7 @@ const registerPolice = async (req, res) => {
     }
 
   } catch (error) {
-    console.error("Register Error:", error.message); 
+    console.error("Register Error:", error.message);
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
@@ -204,7 +204,7 @@ const loginUser = async (req, res) => {
     const officer = await Police.findOne({ email });
     if (officer) {
       user = officer;
-      role = officer.role || 'police'; 
+      role = officer.role || 'police';
     } else {
       const driver = await Driver.findOne({ email });
       if (driver) {
@@ -219,14 +219,18 @@ const loginUser = async (req, res) => {
         _id: user.id,
         name: user.name,
         email: user.email,
-        role: role, 
-        badgeNumber: user.badgeNumber, 
-        
+        role: role,
+        badgeNumber: user.badgeNumber,
+
         // --- NEW FIELDS RETURNED FOR PROFILE ---
         position: user.position,
-        policeStation: user.policeStation, 
+        policeStation: user.policeStation,
         profileImage: user.profileImage,
-        
+
+        isVerified: user.isVerified,
+        licenseNumber: user.licenseNumber,
+        nic: user.nic,
+
         token: generateToken(user.id),
       });
     } else {
@@ -242,8 +246,8 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await Police.findById(req.user.id).select('-password'); 
-    
+    const user = await Police.findById(req.user.id).select('-password');
+
     if (user) {
       res.status(200).json(user);
     } else {
@@ -282,21 +286,19 @@ const verifyDriver = async (req, res) => {
 // @route   PUT /api/auth/update-image
 // @access  Private
 const updateProfileImage = async (req, res) => {
-  const id = req.body.id || req.user.id; 
+  const id = req.body.id || req.user.id;
   const { profileImage } = req.body;
 
   try {
-    let user = await Police.findById(id);
+    let user = await Police.findByIdAndUpdate(id, { profileImage }, { new: true });
+
     if (!user) {
-      user = await Driver.findById(id);
+      user = await Driver.findByIdAndUpdate(id, { profileImage }, { new: true });
     }
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    user.profileImage = profileImage;
-    await user.save();
 
     res.status(200).json({ success: true, message: 'Profile image updated successfully' });
 
@@ -317,7 +319,7 @@ const forgotPassword = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found with this email' });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await Verification.deleteMany({ badgeNumber: email }); 
+    await Verification.deleteMany({ badgeNumber: email });
     await Verification.create({ badgeNumber: email, stationCode: 'RESET', otp });
 
     const message = `You requested a password reset. OTP: ${otp}`;
@@ -363,16 +365,16 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { 
-  requestVerification, 
-  verifyOTP, 
-  registerPolice, 
+module.exports = {
+  requestVerification,
+  verifyOTP,
+  registerPolice,
   registerDriver,
-  forgotPassword, 
-  verifyResetOTP, 
-  resetPassword, 
+  forgotPassword,
+  verifyResetOTP,
+  resetPassword,
   loginUser,
-  getMe,             
-  verifyDriver,      
-  updateProfileImage 
+  getMe,
+  verifyDriver,
+  updateProfileImage
 };

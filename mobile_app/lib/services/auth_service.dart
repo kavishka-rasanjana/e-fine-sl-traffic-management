@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthService {
   // Emulator: 10.0.2.2 | Real Device: Your PC IP Address
-  final String baseUrl = "http://10.159.39.6:5000/api"; 
+  final String baseUrl = "http://192.168.8.114:5000/api"; 
   
   final _storage = const FlutterSecureStorage();
 
@@ -37,6 +37,11 @@ class AuthService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       await _storage.write(key: 'token', value: data['token']);
+      await _storage.write(key: 'name', value: data['name']);
+      // For drivers, save license number
+      if (data['role'] == 'driver' && data['licenseNumber'] != null) {
+        await _storage.write(key: 'licenseNumber', value: data['licenseNumber']);
+      }
       // Save user role and data if needed
       return data;
     } else {
