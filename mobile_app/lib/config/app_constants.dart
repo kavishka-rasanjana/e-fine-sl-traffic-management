@@ -17,7 +17,9 @@ class ApiConstants {
   // Main backend API (existing)
 static const String primaryBaseUrl = 'https://e-fine-sl-traffic-management-1.onrender.com/api';
 static const String secondaryBaseUrl = 'https://e-fine-sl-traffic-management-wapm.onrender.com/api';  
-static const String baseUrl       = primaryBaseUrl;
+// secondary (-wapm) runs the kavishka branch: /auth/public-key + /fines/driver-record.
+// Switch back to primaryBaseUrl once these are merged into main and deployed there.
+static const String baseUrl       = secondaryBaseUrl;
    //static const String baseUrl    = 'http://10.231.145.6:5000/api'; // local dev
 
   // Auth Microservice URL (update after Render deployment)
