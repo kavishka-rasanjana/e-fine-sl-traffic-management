@@ -170,12 +170,15 @@ class SosService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final notified = (data['debug'] as Map?)?['fcmSent'] ?? 0;
+        final notified = data['notified'] ?? 0;
+        final location = data['location'];
         debugPrint(
-            '$_tag ✅ STEP 5 OK: SOS sent! $notified officer(s) notified.');
+            '$_tag ✅ STEP 5 OK: SOS sent! $notified officer(s) notified. Location: $location');
         return {
           'success': true,
-          'message': 'SOS Alert Sent! $notified officer(s) notified.',
+          'message': notified > 0
+              ? 'SOS Alert Sent! $notified officer(s) notified.'
+              : (data['message'] ?? 'SOS logged, but no nearby officer could be notified.'),
           'data': data,
         };
       } else {
@@ -406,10 +409,16 @@ class SosService {
       // ── Handle SOS_ALERT ───────────────────────────────────
       if (type == 'SOS_ALERT') {
         debugPrint('$_tag [SOS] SOS_ALERT received in foreground — showing local notification');
-        NotificationService().showAccidentNotification(
-          title: message.notification?.title ?? '🚨 SOS Emergency!',
-          body: message.notification?.body ?? 'Immediate backup requested!',
-          payload: jsonEncode(message.data),
+        final data = message.data;
+        final fallbackBody = [
+          '${data['senderName'] ?? 'Officer ${data['badgeNumber'] ?? ''}'} needs help!',
+          if ((data['locationText'] ?? '').toString().isNotEmpty) '📍 ${data['locationText']}',
+          'GPS: ${data['lat'] ?? '?'}, ${data['lng'] ?? '?'} — tap for directions',
+        ].join('\n');
+        NotificationService().showSosNotification(
+          title: message.notification?.title ?? data['title'] ?? '🚨 SOS Emergency!',
+          body: message.notification?.body ?? data['body'] ?? fallbackBody,
+          payload: jsonEncode(data),
         );
       }
     });

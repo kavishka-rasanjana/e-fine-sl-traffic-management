@@ -4,11 +4,56 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const Police = require('../models/policeModel');
+const Station = require('../models/stationModel');
 const OfficerSession = require('../models/officerSessionModel');
 const { sendToMultiple } = require('../services/fcmService');
+const { resolveLocation } = require('../utils/sriLankaGeoHelper');
 
 // Constants
 const SOS_RADIUS_METERS = 5000; // Search radius: 5 kilometers
+const SOS_CHANNEL_ID = 'sos_alerts'; // Android channel created by the app (NotificationService)
+
+// FCM error codes meaning the stored token is dead and should be removed
+const DEAD_TOKEN_CODES = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'];
+
+// Distance between two GPS points in km (haversine)
+const distanceKm = (lat1, lng1, lat2, lng2) => {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+/**
+ * Builds a human-readable place for the SOS location:
+ * nearest police station (with distance) + district, falling back to district only.
+ */
+const describeLocation = async (latitude, longitude) => {
+  const { district, province } = resolveLocation(latitude, longitude);
+  let nearestStation = null;
+  try {
+    const station = await Station.findOne({
+      location: { $near: { $geometry: { type: 'Point', coordinates: [longitude, latitude] } } },
+    }).select('name location').lean();
+    if (station && station.location && station.location.coordinates) {
+      const [sLng, sLat] = station.location.coordinates;
+      nearestStation = { name: station.name, km: distanceKm(latitude, longitude, sLat, sLng) };
+    }
+  } catch (err) {
+    console.warn('[SOS Controller] Nearest station lookup failed:', err.message);
+  }
+
+  const parts = [];
+  if (nearestStation) parts.push(`${nearestStation.km.toFixed(1)} km from ${nearestStation.name}`);
+  if (district !== 'Unknown') parts.push(`${district} District`);
+  return {
+    district,
+    province,
+    nearestStation: nearestStation ? nearestStation.name : '',
+    text: parts.join(', ') || 'Unknown area',
+  };
+};
 
 /**
  * @route   POST /api/sos
@@ -88,28 +133,36 @@ const triggerSOS = async (req, res) => {
     }
 
     // 5. Prepare and send FCM push notifications
-    // Filter out officers who don't have a valid FCM token saved
-    const validTokens = recipients
-      .map(o => o.fcmToken)
-      .filter(t => t && t.length > 10);
+    // Unique tokens only (several accounts logged in on one phone share a token),
+    // and never the sender's own device.
+    const validTokens = [...new Set(
+      recipients
+        .map(o => o.fcmToken)
+        .filter(t => t && t.length > 10 && t !== updateResult.fcmToken)
+    )];
 
     const senderName = updateResult.name || `Officer ${badgeNumber}`;
-    
+    const place = await describeLocation(latitude, longitude);
+    const coords = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+    console.log(`${tag} Location: ${place.text} (${coords})`);
+
     // The data payload sent to the mobile devices
     const messagePayload = {
-        notification: {
-            title: '🚨 SOS Emergency!',
-            body: `Officer ${req.body.badgeNumber || 'Unknown'} requests: ${req.body.emergencyType || 'Immediate Backup'}`
-        },
-        android: {
-            priority: 'high' // Bypasses Doze mode for killed apps
-        },
+        title: `🚨 SOS: ${emergencyType}`,
+        body: `${senderName} (${badgeNumber}) needs help!\n📍 ${place.text}\nGPS: ${coords} — tap for directions`,
+        channelId: SOS_CHANNEL_ID,
         data: {
             type: 'SOS_ALERT',
-            badgeNumber: String(req.body.badgeNumber || 'Unknown'),
-            emergencyType: String(req.body.emergencyType || 'Backup Needed'),
-            lat: String(req.body.lat || '0'),
-            lng: String(req.body.lng || '0')
+            badgeNumber: String(badgeNumber),
+            senderName: String(senderName),
+            emergencyType: String(emergencyType),
+            lat: String(latitude),
+            lng: String(longitude),
+            locationText: place.text,
+            district: place.district,
+            nearestStation: place.nearestStation,
+            mapsUrl,
         }
     };
 
@@ -117,6 +170,13 @@ const triggerSOS = async (req, res) => {
     let fcmResult = { sent: 0, failed: 0, results: [] };
     if (validTokens.length > 0) {
       fcmResult = await sendToMultiple(validTokens, messagePayload);
+
+      // Remove dead tokens so they are not retried on every SOS
+      const deadTokens = validTokens.filter((t, i) => DEAD_TOKEN_CODES.includes(fcmResult.results[i]?.code));
+      if (deadTokens.length > 0) {
+        await Police.updateMany({ fcmToken: { $in: deadTokens } }, { $unset: { fcmToken: '' } });
+        console.warn(`${tag} Removed ${deadTokens.length} expired FCM token(s).`);
+      }
     } else {
       console.warn(`${tag} No valid FCM tokens found for the nearby officers.`);
     }
@@ -136,6 +196,8 @@ const triggerSOS = async (req, res) => {
       message: `SOS alert dispatched. ${fcmResult.sent} officer(s) notified.`,
       nearbyCount: nearbyOfficers.length,
       notified: fcmResult.sent,
+      failed: fcmResult.failed,
+      location: place.text,
       notifiedOfficers: notifiedOfficersList // 🔥 The list of officers is returned here
     });
 

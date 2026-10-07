@@ -155,6 +155,11 @@ const sendToToken = async (token, payload) => {
     return { success: true, messageId };
   } catch (err) {
     console.error(`[FCMService] Push failed for token ...${token.slice(-8)} | Code: ${err.code} | Error: ${err.message}`);
+    if (err.code === 'messaging/mismatched-credential' || err.code === 'messaging/sender-id-mismatch') {
+      const projectId = admin.apps[0] && admin.apps[0].options.credential && admin.apps[0].options.credential.projectId;
+      console.error(`[FCMService] ⚠️ The backend's Firebase service account (project: ${projectId || 'unknown'}) is not the Firebase project the mobile app uses. ` +
+        'Download a service account key for the app project (mobile_app/android/app/google-services.json -> project_id) and set FIREBASE_SERVICE_ACCOUNT.');
+    }
     return { success: false, error: err.message, code: err.code };
   }
 };

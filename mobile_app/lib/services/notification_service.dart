@@ -16,6 +16,7 @@ class NotificationService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   static const String _prefKey = 'notifications_enabled';
+  static const String sosChannelId = 'sos_alerts'; // must match SOS_CHANNEL_ID in backend sosController
   bool _initialized = false;
   bool _enabled = false;
 
@@ -57,10 +58,26 @@ class NotificationService {
     );
 
     // Request permissions for Android 13+
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
+
+    // Create the channels the backend sends FCM pushes to (android.notification.channelId).
+    // Without them Android drops pushes into a low-priority fallback channel.
+    await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
+      sosChannelId,
+      'SOS Emergency Alerts',
+      description: 'Backup requests from nearby officers',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    ));
+    await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
+      'traffic_alerts',
+      'Traffic Alerts',
+      description: 'Fines, license status and other e-Fine alerts',
+      importance: Importance.high,
+    ));
 
     // Load persisted preference
     final stored = await _storage.read(key: _prefKey);
@@ -141,6 +158,35 @@ class NotificationService {
 
     await _plugin.show(id, title, body, details, payload: payload);
     debugPrint('[NotificationService] [Accident] Showed ACCIDENT notification: $title');
+  }
+
+  // ── Show an SOS alert (foreground) with the location text ─────────
+  Future<void> showSosNotification({
+    required String title,
+    required String body,
+    String? payload,
+    int id = 911,
+  }) async {
+    // Safety alert — always shown regardless of the user preference
+    final androidDetails = AndroidNotificationDetails(
+      sosChannelId,
+      'SOS Emergency Alerts',
+      channelDescription: 'Backup requests from nearby officers',
+      importance: Importance.max,
+      priority: Priority.max,
+      icon: '@mipmap/launcher_icon',
+      color: const Color(0xFFD32F2F),
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList(<int>[0, 800, 300, 800, 300, 800]),
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
+      // Multi-line so the location / GPS lines are visible
+      styleInformation: BigTextStyleInformation(body, contentTitle: title),
+    );
+
+    await _plugin.show(id, title, body, NotificationDetails(android: androidDetails), payload: payload);
+    debugPrint('[NotificationService] [SOS] Showed SOS notification: $title');
   }
 
   // ── Tap handler ───────────────────────────────────────
