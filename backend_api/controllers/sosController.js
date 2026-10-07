@@ -183,10 +183,14 @@ const triggerSOS = async (req, res) => {
 
     // 6. Format the response to include the list of officers who received the alert
     // This allows the frontend app to show who is coming to help
-    const notifiedOfficersList = recipients.map(officer => ({
-      name: officer.name || 'Unknown Officer',
-      badgeNumber: officer.badgeNumber
-    }));
+    // Only officers whose device actually accepted the push
+    const deliveredTokens = new Set(validTokens.filter((t, i) => fcmResult.results[i]?.success));
+    const notifiedOfficersList = recipients
+      .filter(officer => deliveredTokens.has(officer.fcmToken))
+      .map(officer => ({
+        name: officer.name || 'Unknown Officer',
+        badgeNumber: officer.badgeNumber
+      }));
 
     console.log(`\n${tag} SOS COMPLETE - Sent: ${fcmResult.sent}, Failed: ${fcmResult.failed}`);
     console.log(`${'═'.repeat(60)}\n`);
