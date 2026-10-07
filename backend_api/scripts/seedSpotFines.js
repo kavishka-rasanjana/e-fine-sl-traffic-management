@@ -60,8 +60,10 @@ const SPOT_FINES = [
 const run = async () => {
   const keepLegacy = process.argv.includes('--keep-legacy');
 
-  await mongoose.connect(process.env.MONGO_URI);
-  console.log('[seedSpotFines] Connected to MongoDB');
+  // Same database as config/db.js (the server), not the default one in the URI
+  const dbName = process.env.MONGO_DB_NAME || 'efine_sl_db';
+  await mongoose.connect(process.env.MONGO_URI, { dbName });
+  console.log(`[seedSpotFines] Connected to MongoDB (db: ${dbName})`);
 
   const ops = SPOT_FINES.map((f) => {
     const offenseCode = `SF-${String(f.no).padStart(2, '0')}`;
