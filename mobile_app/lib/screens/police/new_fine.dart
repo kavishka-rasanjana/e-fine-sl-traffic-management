@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/police_locale_service.dart';
 
 import 'package:dropdown_search/dropdown_search.dart';
@@ -45,6 +48,12 @@ class _NewFineScreenState extends State<NewFineScreen> {
   // License whose history is shown (set on scan, or when the officer taps "check")
   String? _checkedLicense;
   Map<String, dynamic>? _driverRecord;
+
+  // Violation evidence photos (camera only, compressed JPEG bytes)
+  static const int _maxPhotos = 3;
+  final ImagePicker _picker = ImagePicker();
+  final List<Uint8List> _photos = [];
+  bool _isCapturing = false;
 
   String _t(String key) => PoliceLocaleService.instance.translate(key);
 
@@ -229,6 +238,120 @@ class _NewFineScreenState extends State<NewFineScreen> {
     );
   }
 
+  Future<void> _capturePhoto() async {
+    if (_photos.length >= _maxPhotos || _isCapturing) return;
+    setState(() => _isCapturing = true);
+    try {
+      // Camera only (no gallery) so the photo is genuine roadside evidence.
+      // Resize + JPEG quality keep each photo around 100-250 KB.
+      final XFile? shot = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 60,
+      );
+      if (shot == null) return;
+      final bytes = await shot.readAsBytes();
+      if (mounted) setState(() => _photos.add(bytes));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("${_t('police.evidence_camera_error')}: $e")));
+      }
+    } finally {
+      if (mounted) setState(() => _isCapturing = false);
+    }
+  }
+
+  Widget _buildEvidenceSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.photo_camera, color: AppColors.primaryBlue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(_t('police.evidence_title'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              Text("${_photos.length}/$_maxPhotos",
+                  style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(_t('police.evidence_hint'),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (int i = 0; i < _photos.length; i++)
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(_photos[i], width: 84, height: 84, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: -8,
+                      right: -8,
+                      child: Material(
+                        color: AppColors.errorRed,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => setState(() => _photos.removeAt(i)),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(Icons.close, size: 14, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (_photos.length < _maxPhotos)
+                InkWell(
+                  onTap: _isCapturing ? null : _capturePhoto,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 84,
+                    height: 84,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.4)),
+                    ),
+                    child: _isCapturing
+                        ? const Center(
+                            child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)))
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.add_a_photo, color: AppColors.primaryBlue),
+                              const SizedBox(height: 4),
+                              Text(_t('police.evidence_capture'),
+                                  style: const TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+                            ],
+                          ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submitFine() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -260,6 +383,8 @@ class _NewFineScreenState extends State<NewFineScreen> {
         "policeOfficerId": _officerBadgeNumber,
         "status": "Unpaid",
         "date": _selectedDate.toIso8601String(),
+        if (_photos.isNotEmpty)
+          "photos": _photos.map((b) => "data:image/jpeg;base64,${base64Encode(b)}").toList(),
       };
 
       await FineService().issueFine(fineData);
@@ -452,6 +577,8 @@ class _NewFineScreenState extends State<NewFineScreen> {
                 const SizedBox(height: 15),
                 _buildDemeritImpact(),
               ],
+              const SizedBox(height: 15),
+              _buildEvidenceSection(),
               const SizedBox(height: 15),
               TextFormField(
                 controller: _locationController,

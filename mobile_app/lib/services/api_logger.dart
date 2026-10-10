@@ -8,6 +8,12 @@ import 'package:http/http.dart' as http;
 class ApiLogger extends http.BaseClient {
   final http.Client _inner = http.Client();
 
+  // Base64 photos can be megabytes: keep the console readable
+  static const int _maxLogChars = 2000;
+  String _shorten(String text) => text.length <= _maxLogChars
+      ? text
+      : '${text.substring(0, _maxLogChars)}... [${text.length - _maxLogChars} more chars]';
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final startTime = DateTime.now();
@@ -21,7 +27,7 @@ class ApiLogger extends http.BaseClient {
     print('[API SENT] ${request.method} ${request.url}');
     print(' Time Sent: $startTime');
     print(' Headers: ${request.headers}');
-    print(' Request Body: $requestBody');
+    print(' Request Body: ${_shorten(requestBody)}');
     print('────────────────────────────────────────────────');
 
     try {
@@ -37,7 +43,7 @@ class ApiLogger extends http.BaseClient {
       print(' Status: ${response.statusCode}');
       print(' Time Received: $receiveTime');
       print(' Duration: ${duration}ms');
-      print(' Response Body: $responseBodyString');
+      print(' Response Body: ${_shorten(responseBodyString)}');
       print('════════════════════════════════════════════════\n');
       
       // Recreate and return the StreamedResponse since the original stream was consumed

@@ -69,6 +69,31 @@ class FineService {
   }
 
   // ----------------------------------------------------------------
+  // 2a. Evidence photos of a fine (issuing officer only)
+  // ----------------------------------------------------------------
+  Future<List<String>> getFineEvidence(String fineId) async {
+    String? token = await _authService.getToken();
+    if (token == null) {
+      throw Exception("Token missing. Please Logout & Login.");
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/fines/$fineId/evidence'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return List<String>.from(data['images'] ?? []);
+    }
+    final msg = jsonDecode(response.body)['message'] ?? response.statusCode;
+    throw Exception("Server Error: $msg");
+  }
+
+  // ----------------------------------------------------------------
   // 2b. Driver Record (Officer view: profile, demerit score, fine history)
   // ----------------------------------------------------------------
   Future<Map<String, dynamic>> getDriverRecord(String licenseNumber) async {

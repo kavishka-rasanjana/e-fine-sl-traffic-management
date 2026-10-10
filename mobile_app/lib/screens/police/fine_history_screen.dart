@@ -4,6 +4,7 @@ import '../../services/police_locale_service.dart';
 import 'package:intl/intl.dart';
 import '../../services/fine_service.dart';
 import '../../config/app_constants.dart';
+import 'fine_detail_screen.dart';
 
 class FineHistoryScreen extends StatefulWidget {
   const FineHistoryScreen({super.key});
@@ -144,12 +145,19 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
 
                         final bool isPaid =
                             rawStatus.toString().toLowerCase() == 'paid';
+                        final int photoCount = (fine['photoCount'] ?? 0) as int;
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 15),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(15)),
                           elevation: 3,
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => FineDetailScreen(fine: fine)),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(15),
                             child: Column(
@@ -235,18 +243,32 @@ class _FineHistoryScreenState extends State<FineHistoryScreen> {
                                   ],
                                 ),
                                 const Divider(),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    "${PoliceLocaleService.instance.translate('police.history_amount_prefix')}$amount",
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                        color: AppColors.errorRed),
-                                  ),
+                                Row(
+                                  children: [
+                                    if (photoCount > 0) ...[
+                                      const Icon(Icons.photo_camera,
+                                          size: 16, color: AppColors.primaryBlue),
+                                      const SizedBox(width: 4),
+                                      Text("$photoCount",
+                                          style: const TextStyle(
+                                              color: AppColors.primaryBlue,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                    const Spacer(),
+                                    Text(
+                                      "${PoliceLocaleService.instance.translate('police.history_amount_prefix')}$amount",
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          color: AppColors.errorRed),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.chevron_right, color: Colors.grey),
+                                  ],
                                 )
                               ],
                             ),
+                          ),
                           ),
                         );
                       },
