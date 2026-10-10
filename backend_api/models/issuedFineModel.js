@@ -29,6 +29,7 @@ const issuedFineSchema = mongoose.Schema({
     gatewayPaymentId: { type: String },
     paidAt: { type: Date, index: true }, // Paid time
     demeritPoints: { type: Number, default: 0 }, // Demerit points associated with the fine
+    photoCount: { type: Number, default: 0 }, // Number of evidence photos (stored in FineEvidence)
     date: { type: Date, default: Date.now, index: true }, // Time fine was issued
     disputeReason: { type: String },
     refundedAt: { type: Date },

@@ -11,6 +11,7 @@ const {
     payFine,
     getDriverPaidHistory,
     getDriverRecord,
+    getFineEvidence,
     getDashboardStats,
     generateFinePdf
 } = require('../controllers/fineController');
@@ -26,6 +27,8 @@ router.get('/driver-history', protect, getDriverPaidHistory);
 // Officer view: driver profile + demerit score + full fine history
 router.get('/driver-record', protect, getDriverRecord);
 router.get('/:id/pdf', protect, generateFinePdf);
+// Violation photos attached by the officer
+router.get('/:id/evidence', protect, getFineEvidence);
 router.post('/:id/pay', protect, payFine);
 
 module.exports = router;

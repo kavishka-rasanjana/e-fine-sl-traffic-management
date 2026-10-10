@@ -1,8 +1,9 @@
 const Offense = require('../models/offenseModel');
 const IssuedFine = require('../models/issuedFineModel');
 const Driver = require('../models/driverModel');
+const FineEvidence = require('../models/fineEvidenceModel');
 const { applyDemeritPoints } = require('./demeritController');
-const { HTTP, PAYMENT, DEMERIT } = require('../config/constants');
+const { HTTP, PAYMENT, DEMERIT, ROLES } = require('../config/constants');
 
 // Exact, case-insensitive match for user-supplied strings (escapes regex special chars)
 const escapeRegex = (value) => String(value).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -38,13 +39,29 @@ const addOffense = async (req, res) => {
   }
 };
 
+// Evidence photo limits (images are compressed on the phone before upload)
+const MAX_EVIDENCE_PHOTOS = 3;
+const MAX_PHOTO_CHARS = 2 * 1024 * 1024; // ~1.5 MB image once Base64-encoded
+const IMAGE_DATA_URI = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+
 // @desc    Issue a new fine (Save to Database)
 // @route   POST /api/fines/issue
 const issueFine = async (req, res) => {
-  const { licenseNumber, vehicleNumber, offenseId, offenseName, amount, place, policeOfficerId, date } = req.body;
+  const { licenseNumber, vehicleNumber, offenseId, offenseName, amount, place, policeOfficerId, date, photos } = req.body;
 
   if (!licenseNumber || !vehicleNumber || !offenseId || !place || !policeOfficerId) {
     return res.status(HTTP.BAD_REQUEST).json({ message: 'All fields are required' });
+  }
+
+  // Optional violation photos: validate before anything is saved
+  const evidencePhotos = Array.isArray(photos) ? photos : [];
+  if (evidencePhotos.length > MAX_EVIDENCE_PHOTOS) {
+    return res.status(HTTP.BAD_REQUEST).json({ message: `A maximum of ${MAX_EVIDENCE_PHOTOS} photos can be attached` });
+  }
+  for (const photo of evidencePhotos) {
+    if (typeof photo !== 'string' || photo.length > MAX_PHOTO_CHARS || !IMAGE_DATA_URI.test(photo)) {
+      return res.status(HTTP.BAD_REQUEST).json({ message: 'Invalid or too large evidence photo' });
+    }
   }
 
   try {
@@ -65,8 +82,20 @@ const issueFine = async (req, res) => {
       place,
       policeOfficerId,
       demeritPoints: offense.demeritValue || 0, // Save points into the fine record
+      photoCount: evidencePhotos.length,
       date: date || Date.now()
     });
+
+    if (evidencePhotos.length > 0) {
+      try {
+        await FineEvidence.create({ fineId: fine._id, policeOfficerId, images: evidencePhotos });
+      } catch (evidenceErr) {
+        // Never lose a roadside fine because of a photo problem
+        console.error('[Evidence] Failed to save photos:', evidenceErr.message);
+        fine.photoCount = 0;
+        await fine.save();
+      }
+    }
 
     let demeritResult = null;
     try {
@@ -83,6 +112,34 @@ const issueFine = async (req, res) => {
   } catch (error) {
     console.error("Error issuing fine:", error);
     res.status(HTTP.SERVER_ERROR).json({ message: 'Failed to issue fine', error: error.message });
+  }
+};
+
+// @desc    Get evidence photos of a fine (issuing officer or admin only)
+// @route   GET /api/fines/:id/evidence
+const getFineEvidence = async (req, res) => {
+  try {
+    const fine = await IssuedFine.findById(req.params.id).select('policeOfficerId photoCount').lean();
+    if (!fine) {
+      return res.status(HTTP.NOT_FOUND).json({ message: 'Fine not found' });
+    }
+
+    const isAdmin = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.ADMIN_OFFICER].includes(req.user.role);
+    if (!isAdmin && req.user.badgeNumber !== fine.policeOfficerId) {
+      return res.status(HTTP.FORBIDDEN).json({ message: 'You can only view evidence for fines you issued' });
+    }
+
+    const evidence = await FineEvidence.findOne({ fineId: fine._id }).select('images capturedAt').lean();
+    res.status(HTTP.OK).json({
+      fineId: fine._id,
+      images: evidence ? evidence.images : [],
+      capturedAt: evidence ? evidence.capturedAt : null,
+    });
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(HTTP.BAD_REQUEST).json({ message: 'Invalid fine id' });
+    }
+    res.status(HTTP.SERVER_ERROR).json({ message: 'Failed to load evidence', error: error.message });
   }
 };
 
@@ -375,6 +432,7 @@ module.exports = {
   payFine,
   getDriverPaidHistory,
   getDriverRecord,
+  getFineEvidence,
   getDashboardStats,
   generateFinePdf
 };
