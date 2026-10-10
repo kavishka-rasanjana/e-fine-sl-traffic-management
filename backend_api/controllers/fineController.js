@@ -3,6 +3,7 @@ const IssuedFine = require('../models/issuedFineModel');
 const Driver = require('../models/driverModel');
 const FineEvidence = require('../models/fineEvidenceModel');
 const { applyDemeritPoints } = require('./demeritController');
+const { sendToToken } = require('../services/fcmService');
 const { HTTP, PAYMENT, DEMERIT, ROLES } = require('../config/constants');
 
 // Exact, case-insensitive match for user-supplied strings (escapes regex special chars)
@@ -43,6 +44,38 @@ const addOffense = async (req, res) => {
 const MAX_EVIDENCE_PHOTOS = 3;
 const MAX_PHOTO_CHARS = 2 * 1024 * 1024; // ~1.5 MB image once Base64-encoded
 const IMAGE_DATA_URI = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+
+// Push "fine issued" to the driver's phone with the violation details
+const notifyDriverOfFine = async (fine, demeritResult) => {
+  const driver = await Driver.findOne({ licenseNumber: exactMatch(fine.licenseNumber) }).select('fcmToken').lean();
+  if (!driver || !driver.fcmToken) return;
+
+  const lines = [
+    `${fine.offenseName} — Rs. ${fine.amount}`,
+    `📍 ${fine.place}`,
+  ];
+  if (fine.demeritPoints) {
+    lines.push(demeritResult
+      ? `-${fine.demeritPoints} demerit points (now ${demeritResult.remainingPoints}/${DEMERIT.DEFAULT_POINTS})`
+      : `-${fine.demeritPoints} demerit points`);
+  }
+  if (fine.photoCount > 0) lines.push(`📷 ${fine.photoCount} violation photo(s) attached`);
+
+  await sendToToken(driver.fcmToken, {
+    title: '🚔 Traffic Fine Issued',
+    body: lines.join('\n'),
+    channelId: 'traffic_alerts',
+    data: {
+      type: 'NEW_FINE_ISSUED',
+      fineId: String(fine._id),
+      offenseName: fine.offenseName,
+      amount: fine.amount,
+      vehicleNumber: fine.vehicleNumber,
+      place: fine.place,
+      photoCount: fine.photoCount || 0,
+    },
+  });
+};
 
 // @desc    Issue a new fine (Save to Database)
 // @route   POST /api/fines/issue
@@ -104,6 +137,10 @@ const issueFine = async (req, res) => {
       console.error('[Demerit] Failed to apply points:', demeritErr.message);
     }
 
+    // Notify the driver instantly (fire-and-forget: never blocks or fails the fine)
+    notifyDriverOfFine(fine, demeritResult).catch((err) =>
+      console.error('[FineNotify] Failed to notify driver:', err.message));
+
     res.status(HTTP.CREATED).json({
       message: 'Fine issued successfully',
       fine,
@@ -119,14 +156,18 @@ const issueFine = async (req, res) => {
 // @route   GET /api/fines/:id/evidence
 const getFineEvidence = async (req, res) => {
   try {
-    const fine = await IssuedFine.findById(req.params.id).select('policeOfficerId photoCount').lean();
+    const fine = await IssuedFine.findById(req.params.id).select('policeOfficerId licenseNumber photoCount').lean();
     if (!fine) {
       return res.status(HTTP.NOT_FOUND).json({ message: 'Fine not found' });
     }
 
+    // Allowed: admins, the issuing officer, and the driver the fine was issued to
     const isAdmin = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.ADMIN_OFFICER].includes(req.user.role);
-    if (!isAdmin && req.user.badgeNumber !== fine.policeOfficerId) {
-      return res.status(HTTP.FORBIDDEN).json({ message: 'You can only view evidence for fines you issued' });
+    const isIssuingOfficer = !!req.user.badgeNumber && req.user.badgeNumber === fine.policeOfficerId;
+    const isFinedDriver = req.user.role === ROLES.DRIVER && !!req.user.licenseNumber &&
+      req.user.licenseNumber.toLowerCase() === String(fine.licenseNumber).toLowerCase();
+    if (!isAdmin && !isIssuingOfficer && !isFinedDriver) {
+      return res.status(HTTP.FORBIDDEN).json({ message: 'You do not have access to this fine\'s photos' });
     }
 
     const evidence = await FineEvidence.findOne({ fineId: fine._id }).select('images capturedAt').lean();

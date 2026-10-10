@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../config/app_constants.dart';
+import '../fine_evidence_gallery.dart';
 
 class PaymentHistoryCard extends StatelessWidget {
   final Map<String, dynamic> fine;
@@ -14,6 +15,39 @@ class PaymentHistoryCard extends StatelessWidget {
       DateFormat('yyyy-MM-dd').format(DateTime.parse(raw));
   String _fmtTime(String raw) =>
       DateFormat('hh:mm a').format(DateTime.parse(raw));
+
+  // ── Evidence photos bottom sheet ───────────────────────────────
+  void _showEvidence(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                fine['offenseName'] ?? 'Violation Photos',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(fine['place'] ?? '', style: TextStyle(color: AppTheme.textHint(context))),
+              const SizedBox(height: 12),
+              FineEvidenceGallery(
+                fineId: fine['_id'].toString(),
+                photoCount: (fine['photoCount'] ?? 0) as int,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   // ── Chip builder ───────────────────────────────────────────────
   Widget _infoChip({
@@ -341,6 +375,23 @@ class PaymentHistoryCard extends StatelessWidget {
                 ),
 
                 const SizedBox(height: AppSpacing.md),
+
+                // ── VIOLATION PHOTOS (if the officer attached any) ──
+                if (((fine['photoCount'] ?? 0) as int) > 0) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 38,
+                    child: TextButton.icon(
+                      onPressed: () => _showEvidence(context),
+                      icon: const Icon(Icons.photo_library, size: 16, color: AppColors.primaryGreen),
+                      label: Text(
+                        "View Violation Photos (${fine['photoCount']})",
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryGreen),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
 
                 // ── SECTION C: DOWNLOAD PDF RECEIPT ──────────────
                 SizedBox(

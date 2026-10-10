@@ -5,6 +5,7 @@ import 'package:mobile_app/services/fine_service.dart';
 import 'dart:convert';
 import 'package:payhere_mobilesdk_flutter/payhere_mobilesdk_flutter.dart';
 import '../../config/app_constants.dart';
+import '../../widgets/fine_evidence_gallery.dart';
 
 class PayFineScreen extends StatefulWidget {
   final Map<String, dynamic> fine;
@@ -34,7 +35,7 @@ class _PayFineScreenState extends State<PayFineScreen> {
         backgroundColor: AppColors.primaryGreenDark,
         centerTitle: true,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,7 +63,9 @@ class _PayFineScreenState extends State<PayFineScreen> {
                    _buildRow("Fine ID", fineId.substring(0, 8).toUpperCase()),
                    _buildRow("Date", (widget.fine['createdAt'] ?? "").toString().substring(0, 10)),
                    _buildRow("Vehicle", widget.fine['vehicleNumber'] ?? "N/A"),
-                   
+                   _buildRow("Place", widget.fine['place'] ?? "N/A"),
+                   _buildRow("Demerit Points", "-${widget.fine['demeritPoints'] ?? 0}"),
+
                    const SizedBox(height: 20),
                    const Divider(),
                    const SizedBox(height: 10),
@@ -76,8 +79,24 @@ class _PayFineScreenState extends State<PayFineScreen> {
                 ],
               ),
             ),
-            const Spacer(),
-            
+            const SizedBox(height: 20),
+
+            // Violation evidence photos taken by the officer
+            Row(
+              children: [
+                const Icon(Icons.photo_library, color: AppColors.primaryGreen),
+                const SizedBox(width: 8),
+                Text("Violation Photos (${widget.fine['photoCount'] ?? 0})",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            FineEvidenceGallery(
+              fineId: fineId,
+              photoCount: (widget.fine['photoCount'] ?? 0) as int,
+            ),
+            const SizedBox(height: 24),
+
             // Pay Button
             SizedBox(
               width: double.infinity,

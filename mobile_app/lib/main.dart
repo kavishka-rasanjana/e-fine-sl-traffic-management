@@ -40,6 +40,10 @@ void main() async {
       Future.delayed(const Duration(milliseconds: 500), () {
         SosService.openGoogleMapsForSOS(lat, lng);
       });
+    } else if (type == 'NEW_FINE_ISSUED') {
+      // App was closed: wait for the first screen, then open the fine
+      final fineId = initialMessage.data['fineId']?.toString();
+      Future.delayed(const Duration(seconds: 3), () => SosService.openIssuedFine(fineId));
     }
   }
 

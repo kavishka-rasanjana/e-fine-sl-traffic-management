@@ -23,6 +23,8 @@ import 'auth_service.dart';
 import 'notification_service.dart';
 import '../config/app_constants.dart';
 import '../screens/police/accident_alert_screen.dart';
+import '../screens/driver/pay_fine_screen.dart';
+import 'fine_service.dart';
 import 'package:mobile_app/main.dart' show navigatorKey;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -48,6 +50,22 @@ class SosService {
       await launchUrl(mapUri, mode: LaunchMode.externalApplication);
     } catch (e) {
       debugPrint('[SOS] Could not launch Google Maps: $e');
+    }
+  }
+
+  /// Driver tapped a "Traffic Fine Issued" push: open that fine's pay screen
+  /// (shows the violation details and the officer's photos).
+  static Future<void> openIssuedFine(String? fineId) async {
+    if (fineId == null || fineId.isEmpty) return;
+    try {
+      final fines = await FineService().getDriverPendingFines();
+      final fine = fines.where((f) => f['_id']?.toString() == fineId).firstOrNull;
+      if (fine == null) return; // already paid or not this driver's fine
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => PayFineScreen(fine: fine)),
+      );
+    } catch (e) {
+      debugPrint('$_tag Could not open issued fine $fineId: $e');
     }
   }
 
@@ -455,6 +473,10 @@ class SosService {
         final lat = message.data['lat']?.toString() ?? '0';
         final lng = message.data['lng']?.toString() ?? '0';
         SosService.openGoogleMapsForSOS(lat, lng);
+      }
+
+      if (type == 'NEW_FINE_ISSUED') {
+        SosService.openIssuedFine(message.data['fineId']?.toString());
       }
     });
 
